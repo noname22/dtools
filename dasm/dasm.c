@@ -12,11 +12,12 @@
 static const char* dinsNames[] = DINSNAMES;
 static const char* valNames[] = VALNAMES;
 
-static int logLevel = 1;
+static int logLevel = 2;
+static int lineNumber = 0;
 
 #define ENDSWITH(__str, __c) (__str)[strlen(__str) - 1] == (__c)
 #define STARTSWITH(__str, __c) ((__str)[0] == (__c))
-
+#define LAssertError(__v, ...) if(!(__v)){ LogI("line: %d", lineNumber); LogF(__VA_ARGS__); exit(1); }
 typedef Vector(uint16_t) U16Vec;
 
 typedef struct {
@@ -107,6 +108,7 @@ bool StrEmpty(const char* str)
 
 bool GetLine(FILE* f, char* buffer)
 {
+	lineNumber++;
 	int at = 0;
 
 	for(;;) {
@@ -142,7 +144,7 @@ char* GetToken(char* buffer, char* token)
 		token[at++] = *(buffer++);
 	}
 
-	LAssert(!expecting, "unterminated quotation, expected: '%c'", expecting);	
+	LAssertError(!expecting, "unterminated quotation, expected: '%c'", expecting);	
 	token[at] = '\0';
 
 	return buffer;
@@ -160,7 +162,7 @@ DVals ParseOperand(const char* tok, unsigned int* nextWord, char** label)
 	{
 		char tab[] = "abcxyzij";
 		for(int i = 0; i < 8; i++) if(tab[i] == c) return i;
-		LAssert(!fail, "No such register: %c", c);
+		LAssertError(!fail, "No such register: %c", c);
 		return -1;
 	}
 
@@ -174,7 +176,7 @@ DVals ParseOperand(const char* tok, unsigned int* nextWord, char** label)
 
 	// Literal or NextWord
 	if(sscanf(token, "0x%x", nextWord) == 1 || sscanf(token, "%u", nextWord) == 1){
-		LAssert(*nextWord < 0x10000, "Literal number must be in range 0 - 65535 (0xFFFF)");
+		LAssertError(*nextWord < 0x10000, "Literal number must be in range 0 - 65535 (0xFFFF)");
 		if(*nextWord < 0x20) return DV_LiteralBase + *nextWord;
 		return DV_NextWord;
 	}
@@ -290,7 +292,7 @@ void Assemble(const char* ifilename, uint16_t* ram)
 						}
 					}
 
-					LAssert(insnum != -1, "no such instruction: %s", token);
+					LAssertError(insnum != -1, "no such instruction: %s", token);
 				//}
 			}
 
@@ -389,8 +391,8 @@ void WriteRam(uint16_t* ram, const char* filename)
 	while(ram[--end] == 0);
 
 	for(int i = 0; i < end; i++){
-		fputc(ram[i] >> 8, out);
 		fputc(ram[i] & 0xff, out);
+		fputc(ram[i] >> 8, out);
 	}
 
 	fclose(out);
@@ -400,14 +402,42 @@ int main(int argc, char** argv)
 {
 	// Allocate 64 kword RAM file
 	uint16_t* ram = malloc(sizeof(uint16_t) * 0x10000);
-	
-	LAssert(argc == 3, "usage: %s [dasm file] [out binary]", argv[0]);
 
-	Assemble(argv[1], ram);	
+	int atFile = 0;
+	const char* files[2] = {NULL, NULL};
+	const char* usage = "usage: %s (-vX | -h) [dasm file] [out binary]";
+
+	for(int i = 1; i < argc; i++){
+		char* v = argv[i];
+		if(STARTSWITH(v, '-')){
+			if(!strcmp(v, "-h")){
+				LogI(usage, argv[0]);
+				LogI(" ");
+				LogI("Available flags:");
+				LogI("  -vX   set log level, where X is [0-5] - default: 2");
+				LogI("  -h    show this help message");
+				return 0;
+			}
+			else if(sscanf(v, "-v%d", &logLevel) == 1){}
+			else{
+				LogF("No such flag: %s", v);
+				return 1;
+			}
+		}else{
+			LAssert(atFile < 2, "Please specify exactly one input file and one output file");
+			files[atFile++] = v;
+		}
+	}
+	
+	LAssert(argc >= 3 && files[0] && files[1], usage, argv[0]);
+
+	LogV("Assembling: %s", files[0]);
+	Assemble(files[0], ram);	
 
 	if(logLevel == 0) DumpRam(ram);
 
-	WriteRam(ram, argv[1]);
+	LogV("Writing to: %s", files[1]);
+	WriteRam(ram, files[1]);
 
 	free(ram);
 	return 0;
