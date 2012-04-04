@@ -15,7 +15,8 @@ typedef enum {
 #define DINS_NUM_BASIC (DI_Ifb + 1)
 #define DINS_EXT_BASE (DI_ExtReserved)
 
-#define DINSNAMES {"NONBASIC", "SET", "ADD", "SUB", "MUL", "DIV", "MOD", "SHL", "SHR", "AND", "BOR", "XOR", "IFE", "IFN", "IFG", "IFB", "RESERVED_EXTENDED", "JSR"}
+#define DINSNAMES {"NONBASIC", "SET", "ADD", "SUB", "MUL", "DIV", "MOD", "SHL", "SHR", \
+	"AND", "BOR", "XOR", "IFE", "IFN", "IFG", "IFB", "RESERVED_EXTENDED", "JSR"}
 
 // Value encoding
 typedef enum {
@@ -34,7 +35,7 @@ typedef enum {
 	"A", "B", "C", "X", "Y", "Z", "I", "J",\
 	"[A]", "[B]", "[C]", "[X]", "[Y]", "[Z]", "[I]", "[J]",\
 	"[NW+A]", "[NW+B]", "[NW+C]", "[NW+X]", "[NW+Y]", "[NW+Z]", "[NW+I]", "[NW+J]",\
-	"[SP++]/POP", "[SP]/PEEK", "[--SP]/PUSH",\
+	"[SP++]", "[SP]", "[--SP]",\
 	"SP", "PC",\
 	"O",\
 	"[NW]", "NW",\

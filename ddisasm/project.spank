@@ -1,0 +1,3 @@
+target ddisasm
+cflags ggdb std=gnu99 Wall I../common
+sourcedir . ../common

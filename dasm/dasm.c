@@ -1,18 +1,10 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <ctype.h>
-#include <stdint.h>
-#include <stdbool.h>
-#include <string.h>
-
-#include "dcpu16ins.h"
-#include "log.h"
 #include "cvector.h"
+#include "common.h"
 
 static const char* dinsNames[] = DINSNAMES;
 static const char* valNames[] = VALNAMES;
 
-static int logLevel = 2;
+int logLevel;
 static int lineNumber = 0;
 
 #define ENDSWITH(__str, __c) (__str)[strlen(__str) - 1] == (__c)
@@ -167,6 +159,16 @@ DVals ParseOperand(const char* tok, unsigned int* nextWord, char** label)
 	}
 
 	*label = NULL;
+
+	// POP / [SP++], PEEK / [SP], PUSH / [--SP]
+	if(!strcmp(token, "pop") || !strcmp(token, "[sp++]")) return DV_Pop;
+	if(!strcmp(token, "peek") || !strcmp(token, "[sp]")) return DV_Peek;
+	if(!strcmp(token, "push") || !strcmp(token, "[--sp]")) return DV_Push;
+
+	// SP, PC
+	if(!strcmp(token, "sp")) return DV_SP;
+	if(!strcmp(token, "pc")) return DV_PC;
+	if(!strcmp(token, "o")) return DV_O;
 	
 	// [next word + register]
 	if(sscanf(token, "[0x%x+%c]", nextWord, &c) == 2) return DV_RefNextWordBase + lookUpReg(c, true);
@@ -183,16 +185,6 @@ DVals ParseOperand(const char* tok, unsigned int* nextWord, char** label)
 
 	// [register]
 	if(sscanf(token, "[%c]", &c) == 1) return DV_RefBase + lookUpReg(c, true);
-
-	// POP / [SP++], PEEK / [SP], PUSH / [--SP]
-	if(!strcmp(token, "pop") || !strcmp(token, "[sp++]")) return DV_Pop;
-	if(!strcmp(token, "peek") || !strcmp(token, "[sp]")) return DV_Peek;
-	if(!strcmp(token, "push") || !strcmp(token, "[--SP]")) return DV_Push;
-
-	// SP, PC
-	if(!strcmp(token, "sp")) return DV_SP;
-	if(!strcmp(token, "pc")) return DV_PC;
-	if(!strcmp(token, "o")) return DV_O;
 	
 	// register
 	if(strlen(token) == 1 && sscanf(token, "%c", &c) == 1){
@@ -210,6 +202,7 @@ DVals ParseOperand(const char* tok, unsigned int* nextWord, char** label)
 void Assemble(const char* ifilename, uint16_t* ram)
 {
 	FILE* in = fopen(ifilename, "r");
+	LAssert(in, "could not open file: %s", ifilename);
 
 	char buffer[512];
 	char token[512];
@@ -323,11 +316,6 @@ void Assemble(const char* ifilename, uint16_t* ram)
 		LogD("  Instruction: %s (0x%02x)", dinsNames[insnum], insnum);
 		if(insnum == DI_NonBasic) LogD("  Extended Instruction: %s (0x%02x)", dinsNames[DINS_EXT_BASE + operands[0]], operands[0]);
 
-		bool opHasNextWord(uint16_t v){ 
-			return (v > DV_RefNextWordBase && v <= DV_RefNextWordTop) 
-			|| v == DV_RefNextWord || v == DV_NextWord || v == DI_ExtJsr; 
-		}
-
 		for(int i = 0; i < numOperands; i++){
 			int v = operands[i];
 			LogD("  Operand %d: %s (0x%02x)", i + 1, valNames[v], v);
@@ -370,38 +358,9 @@ void Assemble(const char* ifilename, uint16_t* ram)
 	fclose(in);
 }
 
-void DumpRam(uint16_t* ram)
-{
-	int end = 0xffff;
-	while(ram[--end] == 0);
-
-	for(int i = 0; i < end + 1; i++){
-		if(i % 8 == 0) printf("\n%04x: ", i);
-		printf("%04x ", ram[i]);
-	}
-
-	printf("\n");
-}
-
-void WriteRam(uint16_t* ram, const char* filename)
-{
-	FILE* out = fopen(filename, "w");
-
-	int end = 0xffff;
-	while(ram[--end] == 0);
-
-	for(int i = 0; i < end; i++){
-		fputc(ram[i] & 0xff, out);
-		fputc(ram[i] >> 8, out);
-	}
-
-	fclose(out);
-}
-
 int main(int argc, char** argv)
 {
-	// Allocate 64 kword RAM file
-	uint16_t* ram = malloc(sizeof(uint16_t) * 0x10000);
+	logLevel = 2;
 
 	int atFile = 0;
 	const char* files[2] = {NULL, NULL};
@@ -430,6 +389,9 @@ int main(int argc, char** argv)
 	}
 	
 	LAssert(argc >= 3 && files[0] && files[1], usage, argv[0]);
+	
+	// Allocate 64 kword RAM file
+	uint16_t* ram = malloc(sizeof(uint16_t) * 0x10000);
 
 	LogV("Assembling: %s", files[0]);
 	Assemble(files[0], ram);	

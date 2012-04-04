@@ -10,4 +10,4 @@ This project aims to provide a complete implementaiton of the DCPU-16 VM, which 
 The project aims to implement
   * An assembler
   * A disassembler
-  * An interpreter
+  * A byte code interpreter
