@@ -1,12 +1,3 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <ctype.h>
-#include <stdint.h>
-#include <stdbool.h>
-#include <string.h>
-
-#include "dcpu16ins.h"
-#include "log.h"
 #include "common.h"
 
 static const char* dinsNames[] = DINSNAMES;
