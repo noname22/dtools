@@ -12,6 +12,8 @@
 static const char* dinsNames[] = DINSNAMES;
 static const char* valNames[] = VALNAMES;
 
+static int logLevel = 1;
+
 #define ENDSWITH(__str, __c) (__str)[strlen(__str) - 1] == (__c)
 #define STARTSWITH(__str, __c) ((__str)[0] == (__c))
 
@@ -26,15 +28,6 @@ typedef struct {
 } Label;
 
 typedef Vector(Label) Labels; 
-
-int WriteInt(FILE* out, uint32_t val, int size){
-	for(int i = 0; i < size; i++){
-		uint8_t w = (val >> ((size - 1 - i) * 8)) & 0xff;
-		fputc(w, out);
-		//LogD("wrote: 0x%02x", w);
-	}
-	return size;
-}
 
 Labels* Labels_Create()
 {
@@ -87,7 +80,7 @@ uint16_t Labels_Get(Labels* me, const char* label, uint16_t current)
 	return l->id;
 }
 	
-void Labels_Replace(Labels* me, FILE* f)
+void Labels_Replace(Labels* me, uint16_t* ram)
 {
 	LogD("replacing labels");
 
@@ -100,8 +93,7 @@ void Labels_Replace(Labels* me, FILE* f)
 
 		uint16_t* pos;
 		Vector_ForEach(l->positions, pos){
-			fseek(f, (long)*pos, SEEK_SET);
-			WriteInt(f, l->addr, 2);
+			ram[*pos] = l->addr;
 			LogD("replaced label %s @ 0x%04x with 0x%04x", l->label, *pos, l->addr);
 		}
 	}
@@ -109,10 +101,7 @@ void Labels_Replace(Labels* me, FILE* f)
 
 bool StrEmpty(const char* str)
 {
-	for(int i = 0; i < strlen(str); i++){
-		if(str[i] >= 32) return false;
-	}
-
+	for(int i = 0; i < strlen(str); i++) if(str[i] > 32) return false;
 	return true;
 }
 
@@ -177,6 +166,9 @@ DVals ParseOperand(const char* tok, unsigned int* nextWord, char** label)
 
 	*label = NULL;
 	
+	// [next word + register]
+	if(sscanf(token, "[0x%x+%c]", nextWord, &c) == 2) return DV_RefNextWordBase + lookUpReg(c, true);
+	
 	// [NextWord]
 	if(sscanf(token, "[0x%x]", nextWord) || sscanf(token, "[%u]", nextWord) == 1) return DV_RefNextWord;
 
@@ -186,9 +178,6 @@ DVals ParseOperand(const char* tok, unsigned int* nextWord, char** label)
 		if(*nextWord < 0x20) return DV_LiteralBase + *nextWord;
 		return DV_NextWord;
 	}
-
-	// [next word + register]
-	if(sscanf(token, "[0x%x+%c]", nextWord, &c) == 2) return DV_RefNextWordBase + lookUpReg(c, true);
 
 	// [register]
 	if(sscanf(token, "[%c]", &c) == 1) return DV_RefBase + lookUpReg(c, true);
@@ -216,10 +205,9 @@ DVals ParseOperand(const char* tok, unsigned int* nextWord, char** label)
 	return DV_NextWord;
 }
 
-void Assemble(const char* ifilename, const char* ofilename)
+void Assemble(const char* ifilename, uint16_t* ram)
 {
 	FILE* in = fopen(ifilename, "r");
-	FILE* out = fopen(ofilename, "w");
 
 	char buffer[512];
 	char token[512];
@@ -229,12 +217,10 @@ void Assemble(const char* ifilename, const char* ofilename)
 	uint16_t addr = 0;
 	Labels* labels = Labels_Create();
 
-	void Write(uint32_t val, int size){
-		//LogD("starting at addr: 0x%04x", (unsigned int)addr);
-		addr += WriteInt(out, val, size);
-	}
-
 	do{
+		int wrote = 0;
+		void Write(uint16_t val){ ram[addr++] = val; wrote++; }
+
 		char* line = buffer;
 		done = GetLine(in, line);
 		int insnum = -1;
@@ -259,6 +245,7 @@ void Assemble(const char* ifilename, const char* ofilename)
 				continue;
 			}
 
+			#if 0
 			// Handle db pseudo instruction arguments
 			if(toknum > 0 && insnum == -2){
 				LogD("db data");
@@ -279,11 +266,14 @@ void Assemble(const char* ifilename, const char* ofilename)
 					}
 				}
 			}
+			else 
+			#endif
 
 			// An instruction
-			else if(toknum == 0){
+			if(toknum == 0){
 				insnum = -1;
 
+				#if 0
 				// Pseudo instructions
 				if(!strcmp(token, "db")){
 					LogD("db pseudo");
@@ -292,6 +282,7 @@ void Assemble(const char* ifilename, const char* ofilename)
 
 				// Actual instructions
 				else{
+				#endif
 					for(int i = 0; i < DINS_NUM; i++){
 						if(!strcmp(dinsNames[i], token)) {
 							insnum = i;
@@ -300,7 +291,7 @@ void Assemble(const char* ifilename, const char* ofilename)
 					}
 
 					LAssert(insnum != -1, "no such instruction: %s", token);
-				}
+				//}
 			}
 
 			else if( toknum == 1 || toknum == 2 ){
@@ -318,21 +309,27 @@ void Assemble(const char* ifilename, const char* ofilename)
 
 		// Line parsed, write parsed stuff
 
-		int eins = -1;
 		if(insnum >= DINS_EXT_BASE){
-			eins = insnum - DINS_EXT_BASE;
+			operands[1] = operands[0];
+			operands[0] = insnum - DINS_EXT_BASE;
+			opLabels[1] = opLabels[0];
+			numOperands = 2;
 			insnum = DI_NonBasic;
 		}
 
-		LogD("Line: %s", buffer);
+		LogD("Line: '%s'", buffer);
 		LogD("  Instruction: %s (0x%02x)", dinsNames[insnum], insnum);
-		if(eins != -1) LogD("  Extended Instruction: %s (0x%02x)", dinsNames[DINS_EXT_BASE + eins], eins);
+		if(insnum == DI_NonBasic) LogD("  Extended Instruction: %s (0x%02x)", dinsNames[DINS_EXT_BASE + operands[0]], operands[0]);
+
+		bool opHasNextWord(uint16_t v){ 
+			return (v > DV_RefNextWordBase && v <= DV_RefNextWordTop) 
+			|| v == DV_RefNextWord || v == DV_NextWord || v == DI_ExtJsr; 
+		}
 
 		for(int i = 0; i < numOperands; i++){
 			int v = operands[i];
 			LogD("  Operand %d: %s (0x%02x)", i + 1, valNames[v], v);
-			if((v > DV_RefNextWordBase && v <= DV_RefNextWordTop) || 
-				v == DV_RefNextWord || v == DV_NextWord){
+			if(opHasNextWord(v)){
 				LogD("  NextWord: 0x%04x", nextWord[i]);
 			}
 		}
@@ -341,34 +338,77 @@ void Assemble(const char* ifilename, const char* ofilename)
 	
 		// Write the instruction and its operands
 		uint16_t ins = (insnum & 0xf) | ((operands[0] & 0x3f) << 4) | ((operands[1] & 0x3f) << 10);
-		Write(ins, 2);
+		Write(ins);
 
 		// Write "nextwords"
 		for(int i = 0; i < numOperands; i++){
 			int v = operands[i];
-			if((v > DV_RefNextWordBase && v <= DV_RefNextWordTop) || v == DV_RefNextWord || v == DV_NextWord){
+			if(opHasNextWord(v)){
 				// This refers to a label
 				if(opLabels[i]){
 					Labels_Get(labels, opLabels[i], addr);
 					free(opLabels[i]);
 				}
 
-				Write(nextWord[i], 2);
+				Write(nextWord[i]);
 			}
 		}
-		
+
+		char dump[64];
+		memset(dump, 64, 0);
+		char* d = dump;
+
+		for(int i = 0; i < wrote; i++) d += sprintf(d, "%04x ", ram[addr - wrote + i]);
+		LogD("  Output: %s", dump);
+
 	} while (done);
 
-	Labels_Replace(labels, out);	
+	Labels_Replace(labels, ram);
 
 	fclose(in);
+}
+
+void DumpRam(uint16_t* ram)
+{
+	int end = 0xffff;
+	while(ram[--end] == 0);
+
+	for(int i = 0; i < end + 1; i++){
+		if(i % 8 == 0) printf("\n%04x: ", i);
+		printf("%04x ", ram[i]);
+	}
+
+	printf("\n");
+}
+
+void WriteRam(uint16_t* ram, const char* filename)
+{
+	FILE* out = fopen(filename, "w");
+
+	int end = 0xffff;
+	while(ram[--end] == 0);
+
+	for(int i = 0; i < end; i++){
+		fputc(ram[i] >> 8, out);
+		fputc(ram[i] & 0xff, out);
+	}
+
 	fclose(out);
 }
 
 int main(int argc, char** argv)
 {
+	// Allocate 64 kword RAM file
+	uint16_t* ram = malloc(sizeof(uint16_t) * 0x10000);
+	
 	LAssert(argc == 3, "usage: %s [dasm file] [out binary]", argv[0]);
-	Assemble(argv[1], argv[2]);	
 
+	Assemble(argv[1], ram);	
+
+	if(logLevel == 0) DumpRam(ram);
+
+	WriteRam(ram, argv[1]);
+
+	free(ram);
 	return 0;
 }
