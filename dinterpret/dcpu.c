@@ -35,7 +35,7 @@ void Dcpu_Push(Dcpu* me, uint16_t v){
 	me->ram[--me->sp] = v;
 }
 
-// Basic instructions
+// Extended instructions
 void NonBasic(Dcpu* me, uint16_t* v1, uint16_t* v2)
 {
 	if(*v1 == DI_ExtJsr - DINS_EXT_BASE){
@@ -64,6 +64,7 @@ void NonBasic(Dcpu* me, uint16_t* v1, uint16_t* v2)
 	}
 }
 
+// Basic instructions
 void Set(Dcpu* me, uint16_t* v1, uint16_t* v2){ *v1 = *v2; }
 
 void Add(Dcpu* me, uint16_t* v1, uint16_t* v2){
@@ -200,7 +201,7 @@ int Dcpu_Execute(Dcpu* me, int cycles)
 		for(int i = 0; i < 2; i++){
 			DVals vv = v[i];
 			
-			// Extended instruction, first op is the instruction number
+			// Extended instruction, first operand is the instruction number
 			if(i == 0 && ins == DI_NonBasic){
 				val[0] = v[0];
 				pv[i] = val;
