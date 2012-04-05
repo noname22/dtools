@@ -178,6 +178,11 @@ uint16_t Dcpu_GetRegister(Dcpu* me, Dcpu_Register reg)
 	return me->regs[reg];
 }
 
+void Dcpu_SetRegister(Dcpu* me, Dcpu_Register reg, uint16_t val)
+{
+	me->regs[reg] = val;
+}
+
 void Dcpu_DumpState(Dcpu* me)
 {
 	LogD(" == Current State ==");

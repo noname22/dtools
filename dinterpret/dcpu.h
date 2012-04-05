@@ -17,5 +17,6 @@ void Dcpu_DumpState(Dcpu* me);
 typedef enum { DR_A, DR_B, DR_C, DR_X, DR_Y, DR_Z, DR_I, DR_J } Dcpu_Register;
 
 uint16_t Dcpu_GetRegister(Dcpu* me, Dcpu_Register reg);
+void Dcpu_SetRegister(Dcpu* me, Dcpu_Register reg, uint16_t val);
 
 #endif
