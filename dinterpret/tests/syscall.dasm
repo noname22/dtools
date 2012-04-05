@@ -1,5 +1,5 @@
 :start	
-	SET PUSH, msg    ; push the address of the message onto the stack
+	SET A, msg    ; push the address of the message onto the stack
 	SYS 2            ; call the system with syscall 2 -> write to screen
 	SYS 0            ; syscall 0 -> end program
 

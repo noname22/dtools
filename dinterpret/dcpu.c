@@ -164,6 +164,11 @@ uint16_t* Dcpu_GetRam(Dcpu* me)
 	return me->ram;
 }
 
+uint16_t Dcpu_GetRegister(Dcpu* me, Dcpu_Register reg)
+{
+	return me->regs[reg];
+}
+
 void Dcpu_DumpState(Dcpu* me)
 {
 	LogD(" == Current State ==");

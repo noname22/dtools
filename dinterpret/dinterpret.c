@@ -5,7 +5,7 @@ int logLevel;
 
 void SysWrite(Dcpu* me, void* data)
 {
-	uint16_t* msg = Dcpu_GetRam(me) + Dcpu_Pop(me);
+	uint16_t* msg = Dcpu_GetRam(me) + Dcpu_GetRegister(me, DR_A);
 	for(int i = 1; i < msg[0] + 2; i++) fputc(msg[i], stdout);
 }
 
