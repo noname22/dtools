@@ -44,6 +44,6 @@ void DumpRam(uint16_t* ram)
 }
 
 bool opHasNextWord(uint16_t v){ 
-	return (v > DV_RefNextWordBase && v <= DV_RefNextWordTop) 
-		|| v == DV_RefNextWord || v == DV_NextWord || v == DI_ExtJsr; 
+	return (v > DV_RefRegNextWordBase && v <= DV_RefRegNextWordTop) 
+		|| v == DV_RefNextWord || v == DV_NextWord; 
 }

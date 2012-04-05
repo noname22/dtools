@@ -8,21 +8,24 @@ typedef enum {
 	DI_Shr, DI_And, DI_Bor, DI_Xor, DI_Ife, DI_Ifn, DI_Ifg, DI_Ifb,
 
 	// Extended instructions
-	DI_ExtReserved, DI_ExtJsr
+	DI_ExtReserved, DI_ExtJsr,
+
+	// Dtools Extended instructions
+	DI_ExtSys
 } DIns;
 
-#define DINS_NUM (DI_ExtJsr + 1)
+#define DINS_NUM (DI_ExtSys + 1)
 #define DINS_NUM_BASIC (DI_Ifb + 1)
 #define DINS_EXT_BASE (DI_ExtReserved)
 
 #define DINSNAMES {"NONBASIC", "SET", "ADD", "SUB", "MUL", "DIV", "MOD", "SHL", "SHR", \
-	"AND", "BOR", "XOR", "IFE", "IFN", "IFG", "IFB", "RESERVED_EXTENDED", "JSR"}
+	"AND", "BOR", "XOR", "IFE", "IFN", "IFG", "IFB", "RESERVED_EXTENDED", "JSR", "SYS"}
 
 // Value encoding
 typedef enum {
 	DV_A, DV_B, DV_C, DV_X, DV_Y, DV_Z, DV_I, DV_J,
 	DV_RefBase = 0x08, DV_RefTop = 0x0f,
-	DV_RefNextWordBase = 0x10, DV_RefNextWordTop = 0x17,
+	DV_RefRegNextWordBase = 0x10, DV_RefRegNextWordTop = 0x17,
 	DV_Pop, DV_Peek, DV_Push,
 	DV_SP, DV_PC,
 	DV_O,

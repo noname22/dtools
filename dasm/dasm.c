@@ -171,7 +171,7 @@ DVals ParseOperand(const char* tok, unsigned int* nextWord, char** label)
 	if(!strcmp(token, "o")) return DV_O;
 	
 	// [next word + register]
-	if(sscanf(token, "[0x%x+%c]", nextWord, &c) == 2) return DV_RefNextWordBase + lookUpReg(c, true);
+	if(sscanf(token, "[0x%x+%c]", nextWord, &c) == 2) return DV_RefRegNextWordBase + lookUpReg(c, true);
 	
 	// [NextWord]
 	if(sscanf(token, "[0x%x]", nextWord) || sscanf(token, "[%u]", nextWord) == 1) return DV_RefNextWord;
@@ -240,44 +240,47 @@ void Assemble(const char* ifilename, uint16_t* ram)
 				continue;
 			}
 
-			#if 0
 			// Handle db pseudo instruction arguments
 			if(toknum > 0 && insnum == -2){
+				unsigned int val;
+
 				LogD("db data");
 				// characters on 'c' format
 				if(token[0] == '\''){
 					LAssert(strlen(token) == 3, "syntax error");
 					LAssert(ENDSWITH(token, '\''), "expected \'");
-					Write(token[1], 1);
+					Write(token[1]);
 				}
 
 				// List of characters on the "string" format
-				if(token[0] == '"'){
+				else if(token[0] == '"'){
 					LAssert(ENDSWITH(token, '"'), "expected \"");
 					int len = strlen(token) - 2;
-					for(int i = 0; i < len - 1; i++){
-						Write(token[i + 1], 1);
+					for(int i = 0; i < len; i++){
+						Write(token[i + 1]);
 						LogD("%c", token[i + 1]);
 					}
 				}
+
+				// Literal number (hex or dec)
+				else if(sscanf(token, "0x%x", &val) == 1 || sscanf(token, "%u", &val) == 1){
+					Write(val);
+				}
 			}
 			else 
-			#endif
 
 			// An instruction
 			if(toknum == 0){
 				insnum = -1;
 
-				#if 0
 				// Pseudo instructions
-				if(!strcmp(token, "db")){
+				if(!strcmp(token, "DB")){
 					LogD("db pseudo");
 					insnum = -2;
 				}
 
 				// Actual instructions
 				else{
-				#endif
 					for(int i = 0; i < DINS_NUM; i++){
 						if(!strcmp(dinsNames[i], token)) {
 							insnum = i;
@@ -286,7 +289,7 @@ void Assemble(const char* ifilename, uint16_t* ram)
 					}
 
 					LAssertError(insnum != -1, "no such instruction: %s", token);
-				//}
+				}
 			}
 
 			else if( toknum == 1 || toknum == 2 ){
@@ -301,6 +304,9 @@ void Assemble(const char* ifilename, uint16_t* ram)
 				
 			toknum++;
 		}
+
+		// Pseudo instruction handled
+		if(insnum < -1) continue;
 
 		// Line parsed, write parsed stuff
 
