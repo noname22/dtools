@@ -22,6 +22,8 @@ struct Dcpu {
 	bool performNextIns;
 	bool exit;
 
+	int cycles;
+
 	SysCallVector sysCalls;
 
 	InsPtr ins[DINS_NUM];
@@ -65,12 +67,13 @@ void NonBasic(Dcpu* me, uint16_t* v1, uint16_t* v2)
 }
 
 // Basic instructions
-void Set(Dcpu* me, uint16_t* v1, uint16_t* v2){ *v1 = *v2; }
+void Set(Dcpu* me, uint16_t* v1, uint16_t* v2){ *v1 = *v2; me->cycles++; }
 
 void Add(Dcpu* me, uint16_t* v1, uint16_t* v2){
 	uint16_t tmp = *v1;
 	*v1 += *v2;
 	me->o = *v1 < tmp;
+	me->cycles += 2;
 }
 
 void Sub(Dcpu* me, uint16_t* v1, uint16_t* v2)
@@ -78,12 +81,14 @@ void Sub(Dcpu* me, uint16_t* v1, uint16_t* v2)
 	uint16_t tmp = *v1;
 	*v1 -= *v2;
 	me->o = *v1 > tmp;
+	me->cycles += 2;
 }
 
 void Mul(Dcpu* me, uint16_t* v1, uint16_t* v2)
 {
 	me->o = ((uint32_t)*v1 * (uint32_t)*v2 >> 16) & 0xffff;
 	*v1 *= *v2;
+	me->cycles += 2;
 }
 
 void Div(Dcpu* me, uint16_t* v1, uint16_t* v2)
@@ -91,33 +96,37 @@ void Div(Dcpu* me, uint16_t* v1, uint16_t* v2)
 	if(!*v2) me->o = *v1 = 0;
 	me->o = (((uint32_t)*v1 << 16) / ((uint32_t)*v2)) & 0xffff;
 	*v1 /= *v2;
+	me->cycles += 3;
 }
 
 void Mod(Dcpu* me, uint16_t* v1, uint16_t* v2)
 {
 	if(!*v2) me->o = *v1 = 0;
 	*v1 %= *v2;
+	me->cycles += 3;
 }
 
 void Shl(Dcpu* me, uint16_t* v1, uint16_t* v2)
 {
 	me->o = (((uint32_t)*v1 << (uint32_t)*v2) >> 16) & 0xffff;
 	*v1 = *v1 << *v2;
+	me->cycles += 2;
 }
 
 void Shr(Dcpu* me, uint16_t* v1, uint16_t* v2)
 {
 	me->o = (((uint32_t)*v1 << 16)>> (uint32_t)*v2) & 0xffff;
+	me->cycles += 2;
 }
 
-void And(Dcpu* me, uint16_t* v1, uint16_t* v2){ *v1 &= *v2; }
-void Bor(Dcpu* me, uint16_t* v1, uint16_t* v2){ *v1 |= *v2; }
-void Xor(Dcpu* me, uint16_t* v1, uint16_t* v2){ *v1 ^= *v2; }
+void And(Dcpu* me, uint16_t* v1, uint16_t* v2){ *v1 &= *v2; me->cycles++; }
+void Bor(Dcpu* me, uint16_t* v1, uint16_t* v2){ *v1 |= *v2; me->cycles++; }
+void Xor(Dcpu* me, uint16_t* v1, uint16_t* v2){ *v1 ^= *v2; me->cycles++; }
 
-void Ife(Dcpu* me, uint16_t* v1, uint16_t* v2){ me->performNextIns = *v1 == *v2; }
-void Ifn(Dcpu* me, uint16_t* v1, uint16_t* v2){ me->performNextIns = *v1 != *v2; }
-void Ifg(Dcpu* me, uint16_t* v1, uint16_t* v2){ me->performNextIns = *v1 > *v2; }
-void Ifb(Dcpu* me, uint16_t* v1, uint16_t* v2){ me->performNextIns = (*v1 & *v2) != 0; }
+void Ife(Dcpu* me, uint16_t* v1, uint16_t* v2){ me->performNextIns = *v1 == *v2; me->cycles += 2 + (uint16_t)me->performNextIns; }
+void Ifn(Dcpu* me, uint16_t* v1, uint16_t* v2){ me->performNextIns = *v1 != *v2; me->cycles += 2 + (uint16_t)me->performNextIns; }
+void Ifg(Dcpu* me, uint16_t* v1, uint16_t* v2){ me->performNextIns = *v1 > *v2; me->cycles += 2 + (uint16_t)me->performNextIns; }
+void Ifb(Dcpu* me, uint16_t* v1, uint16_t* v2){ me->performNextIns = (*v1 & *v2) != 0; me->cycles += 2 + (uint16_t)me->performNextIns; }
 
 Dcpu* Dcpu_Create()
 {
@@ -186,11 +195,12 @@ void Dcpu_DumpState(Dcpu* me)
 	LogD(" ");
 }
 
-int Dcpu_Execute(Dcpu* me, int cycles)
+int Dcpu_Execute(Dcpu* me, int execCycles)
 {
 	#define READ (me->ram[me->pc++])
+	me->cycles = 0;
 
-	for(int i = 0; i < cycles; i++){
+	while(me->cycles < execCycles){
 		bool hasNextWord[2];
 		uint16_t val[2];
 		uint16_t pIns = READ;
@@ -213,7 +223,10 @@ int Dcpu_Execute(Dcpu* me, int cycles)
 				continue;
 			}
 
-			if((hasNextWord[i] = opHasNextWord(v[i]))) val[i] = READ;
+			if((hasNextWord[i] = opHasNextWord(v[i]))) {
+				val[i] = READ;
+				me->cycles++;
+			}
 
 			// register
 			if(vv >= DV_A && vv <= DV_J) pv[i] = me->regs + vv - DV_A;
