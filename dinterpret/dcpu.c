@@ -52,8 +52,8 @@ void NonBasic(Dcpu* me, uint16_t* v1, uint16_t* v2)
 		}
 
 		SysCall* s;
+		bool found = false;
 		Vector_ForEach(me->sysCalls, s){
-			bool found = false;
 			if(s->id == *v2){
 				Dcpu_DumpState(me);
 				s->fun(me, s->data);
@@ -61,8 +61,8 @@ void NonBasic(Dcpu* me, uint16_t* v1, uint16_t* v2)
 				found = true;
 				break;
 			}
-			if(!found) LogW("Invalid syscall: %d", *v2);
 		}
+		if(!found) LogW("Invalid syscall: %d", *v2);
 	}
 }
 

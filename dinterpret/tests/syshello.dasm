@@ -1,0 +1,37 @@
+; syshello.dasm
+
+; This program uses my proposed syscall operation (SYS) to query the 
+; user for her name, which it then prints back to the screen with a
+; friendly message.
+
+; ========= Program =========
+:start	
+		SET PUSH, m_query   ; push the address of the message onto the stack
+		SYS 2               ; call the system with syscall 2 -> write to screen
+
+		SET PUSH, b_name    ; push the address to fetch 
+		SYS 1               ; syscall 1 -> read from input
+
+		SET PUSH, m_hello
+		SYS 2
+
+		SET PUSH, b_name
+		SYS 2
+
+		SET PUSH, m_excl
+		SYS 2
+
+		SYS 0               ; syscall 0 -> end program
+
+
+; ========== Data ===========
+
+		; Messages
+		; msg, (newline,) null termination 
+
+:m_query	DB "What is your name?", 0xa, "> ", 0
+:m_hello 	DB "Hello ", 0
+:m_excl		DB "!", 0xa, 0
+
+		; Buffer to write the name to, rest of RAM
+:b_name		DB 0x00

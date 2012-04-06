@@ -1,7 +1,7 @@
 :start	
-	SET A, msg       ; copy the address of the message into register a
+	SET PUSH, msg    ; push the address of the message onto the stack
 	SYS 2            ; call the system with syscall 2 -> write to screen
 	SYS 0            ; syscall 0 -> end program
 
-	; length, message (new line)
-:msg 	DB 13, "Hello, World!", 0xa
+	; message, newline, null termination 
+:msg 	DB "Hello, World!", 0xa, 0x0
