@@ -69,7 +69,8 @@ void Disasm(uint16_t* ram)
 		}
 		
 		printf("%*s", 40 - n, "; ");
-		for(int i = 0; i < hasRead; i++) printf("0x%04x | %04x ", pc - hasRead, ram[pc - hasRead + i]);
+		printf("0x%04x | ", pc - hasRead);
+		for(int i = 0; i < hasRead; i++) printf("%04x ", ram[pc - hasRead + i]);
 
 		printf("\n");
 	}
