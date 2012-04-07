@@ -139,6 +139,8 @@ Dcpu* Dcpu_Create()
 	Dcpu* me = calloc(1, sizeof(Dcpu));
 	me->ram = calloc(1, sizeof(uint16_t) * 0x10000);
 
+	me->performNextIns = true;
+
 	Vector_Init(me->sysCalls, SysCall);
 
 	me->ins[DI_NonBasic] = NonBasic;
@@ -274,7 +276,7 @@ int Dcpu_Execute(Dcpu* me, int execCycles)
 		}
 		else me->performNextIns = true;
 
-		//Dcpu_DumpState(me);
+		Dcpu_DumpState(me);
 
 		if(me->exit) return 0;
 	}
