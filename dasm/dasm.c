@@ -7,8 +7,8 @@ static const char* valNames[] = VALNAMES;
 // Assembler directives
 #define AD_NUM (AD_Dw + 1)
 #define AD2INS(_n) (-2 - (_n))
-typedef enum {AD_Org, AD_Dw} AsmDir;
-static const char* adNames[AD_NUM] = {".ORG", ".DW"};
+typedef enum {AD_Org, AD_Define, AD_Dw} AsmDir;
+static const char* adNames[AD_NUM] = {".ORG", ".DEFINE", ".DW"};
 
 int logLevel;
 static int lineNumber = 0;
@@ -17,6 +17,9 @@ static int lineNumber = 0;
 #define STARTSWITH(__str, __c) ((__str)[0] == (__c))
 #define LAssertError(__v, ...) if(!(__v)){ LogI("line: %d", lineNumber); LogF(__VA_ARGS__); exit(1); }
 typedef Vector(uint16_t) U16Vec;
+
+typedef struct { char* searchReplace[2]; } Define;
+typedef Vector(Define) Defines;
 
 typedef struct {
 	char* label;
@@ -213,6 +216,17 @@ uint16_t ParseLiteral(const char* str)
 	return ret;
 }
 
+void PreProcess(Defines* defines, char* str)
+{
+	Define* it;
+	Vector_ForEach(*defines, it){
+		// XXX: optimize this
+		char buffer[512];
+		StrReplace(buffer, str, it->searchReplace[0], it->searchReplace[1]);
+		strcpy(str, buffer);
+	}
+}
+
 void Assemble(const char* ifilename, uint16_t* ram)
 {
 	FILE* in = fopen(ifilename, "r");
@@ -226,13 +240,20 @@ void Assemble(const char* ifilename, uint16_t* ram)
 	uint16_t addr = 0;
 	Labels* labels = Labels_Create();
 
+	Defines defines;
+	Vector_Init(defines, Define);
+
 	do{
 		int wrote = 0;
 		void Write(uint16_t val){ ram[addr++] = val; wrote++; }
 
 		char* line = buffer;
+
 		done = GetLine(in, line);
+		PreProcess(&defines, line);
+
 		int insnum = -1;
+		Define def;
 
 		int numOperands = 0;
 		uint8_t operands[2] = {0, 0};
@@ -258,8 +279,6 @@ void Assemble(const char* ifilename, uint16_t* ram)
 			if(toknum > 0 && insnum < -1){
 				// .DW
 			 	if(insnum == AD2INS(AD_Dw)){
-					unsigned int val;
-
 					LogD(".dw data");
 					// characters on 'c' format
 					if(token[0] == '\''){
@@ -279,14 +298,18 @@ void Assemble(const char* ifilename, uint16_t* ram)
 					}
 
 					// Literal number (hex or dec)
-					else if(sscanf(token, "0x%x", &val) == 1 || sscanf(token, "%u", &val) == 1){
-						Write(val);
-					}
+					else Write(ParseLiteral(token));
 				}
 
 				// .ORG
 				if(insnum == AD2INS(AD_Org)) addr = ParseLiteral(token);
-				
+		
+				// .DEFINE
+				if(insnum == AD2INS(AD_Define)){	
+					LAssertError(toknum <= 2, "too many arguments for .DEFINE");
+					def.searchReplace[toknum - 1] = strdup(token);
+					if(toknum == 2) Vector_Add(defines, def); 
+				}	
 			}
 
 			// An instruction or assembly directive

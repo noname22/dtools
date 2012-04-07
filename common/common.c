@@ -47,3 +47,20 @@ bool opHasNextWord(uint16_t v){
 	return (v > DV_RefRegNextWordBase && v <= DV_RefRegNextWordTop) 
 		|| v == DV_RefNextWord || v == DV_NextWord; 
 }
+
+char* StrReplace(char* target, const char* str, const char* what, const char* with)
+{
+	const char* ss = strstr(str, what);
+
+	if(!ss) strcpy(target, str);
+	else{
+		int at = (intptr_t)ss - (intptr_t)str;
+			
+		strncpy(target, str, at);
+		strcpy(target + at, with);
+		strcpy(target + at + strlen(with), str + at + strlen(what));
+	}
+
+	return target;
+}
+
