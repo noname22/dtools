@@ -29,9 +29,9 @@
 		; Messages
 		; msg, (newline,) null termination 
 
-:m_query	DB "What is your name?", 0xa, "> ", 0
-:m_hello 	DB "Hello ", 0
-:m_excl		DB "!", 0xa, 0
+:m_query	.DW "What is your name?", 0xa, "> ", 0
+:m_hello 	.DW "Hello ", 0
+:m_excl		.DW "!", 0xa, 0
 
 		; Buffer to write the name to, rest of RAM
-:b_name		DB 0x00
+:b_name		.DW 0x00

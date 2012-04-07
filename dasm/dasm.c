@@ -5,9 +5,10 @@ static const char* dinsNames[] = DINSNAMES;
 static const char* valNames[] = VALNAMES;
 
 // Assembler directives
-#define NUM_AD (AD_Dw + 1)
-typedef enum {AD_Dw} AsmDir;
-static const char* adNames[NUM_AD] = {".DW"};
+#define AD_NUM (AD_Dw + 1)
+#define AD2INS(_n) (-2 - (_n))
+typedef enum {AD_Org, AD_Dw} AsmDir;
+static const char* adNames[AD_NUM] = {".ORG", ".DW"};
 
 int logLevel;
 static int lineNumber = 0;
@@ -204,6 +205,14 @@ DVals ParseOperand(const char* tok, unsigned int* nextWord, char** label)
 	return DV_NextWord;
 }
 
+uint16_t ParseLiteral(const char* str)
+{
+	unsigned int ret;
+	if(sscanf(str, "0x%x", &ret) || sscanf(str, "%u", &ret)) return ret;
+	LAssertError(0, "could not parse literal: %s", str)
+	return ret;
+}
+
 void Assemble(const char* ifilename, uint16_t* ram)
 {
 	FILE* in = fopen(ifilename, "r");
@@ -245,58 +254,66 @@ void Assemble(const char* ifilename, uint16_t* ram)
 				continue;
 			}
 
-			// Handle db pseudo instruction arguments
-			if(toknum > 0 && insnum == -2){
-				unsigned int val;
+			// Handle arguments to directives
+			if(toknum > 0 && insnum < -1){
+				// .DW
+			 	if(insnum == AD2INS(AD_Dw)){
+					unsigned int val;
 
-				LogD("db data");
-				// characters on 'c' format
-				if(token[0] == '\''){
-					LAssert(strlen(token) == 3, "syntax error");
-					LAssert(ENDSWITH(token, '\''), "expected \'");
-					Write(token[1]);
-				}
+					LogD(".dw data");
+					// characters on 'c' format
+					if(token[0] == '\''){
+						LAssert(strlen(token) == 3, "syntax error");
+						LAssert(ENDSWITH(token, '\''), "expected \'");
+						Write(token[1]);
+					}
 
-				// List of characters on the "string" format
-				else if(token[0] == '"'){
-					LAssert(ENDSWITH(token, '"'), "expected \"");
-					int len = strlen(token) - 2;
-					for(int i = 0; i < len; i++){
-						Write(token[i + 1]);
-						LogD("%c", token[i + 1]);
+					// List of characters on the "string" format
+					else if(token[0] == '"'){
+						LAssert(ENDSWITH(token, '"'), "expected \"");
+						int len = strlen(token) - 2;
+						for(int i = 0; i < len; i++){
+							Write(token[i + 1]);
+							LogD("%c", token[i + 1]);
+						}
+					}
+
+					// Literal number (hex or dec)
+					else if(sscanf(token, "0x%x", &val) == 1 || sscanf(token, "%u", &val) == 1){
+						Write(val);
 					}
 				}
 
-				// Literal number (hex or dec)
-				else if(sscanf(token, "0x%x", &val) == 1 || sscanf(token, "%u", &val) == 1){
-					Write(val);
-				}
+				// .ORG
+				if(insnum == AD2INS(AD_Org)) addr = ParseLiteral(token);
+				
 			}
-			else 
 
 			// An instruction or assembly directive
-			if(toknum == 0){
+			else if(toknum == 0){
 				insnum = -1;
 
 				// Assembly directives
 				for(int i = 0; i < AD_NUM; i++){
 					if(!strcmp(adNames[i], token)){
 						LogD("Directive: %s", token);
-						insnum = -2 - i;
+						insnum = AD2INS(i);
+						goto done_searching;
 					}
 				}
 
 				// Actual instructions
-				else{
-					for(int i = 0; i < DINS_NUM; i++){
-						if(!strcmp(dinsNames[i], token)) {
-							insnum = i;
-							break;
-						}
+				for(int i = 0; i < DINS_NUM; i++){
+					if(!strcmp(dinsNames[i], token)) {
+						insnum = i;
+						goto done_searching;
 					}
-
-					LAssertError(insnum != -1, "no such instruction: %s", token);
 				}
+
+				LAssertError(insnum != -1, "no such instruction: %s", token);
+
+				done_searching: 
+				while(0){} // "NOOP", must have something after a label
 			}
 
 			else if( toknum == 1 || toknum == 2 ){
