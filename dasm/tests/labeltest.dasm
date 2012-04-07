@@ -1,4 +1,8 @@
 :l1 SET I, l2
 :l2 SET I, l3
-:l3 SET I, l4
-:l4 SET I, l1
+
+:l3 			SET I, l4
+
+:l4
+
+SET I, l1

@@ -305,8 +305,9 @@ void Assemble(const char* ifilename, uint16_t* ram)
 			toknum++;
 		}
 
-		// Pseudo instruction handled
-		if(insnum < -1) continue;
+		// Pseudo instruction handled (-2) or no instruction found 
+		// (probably a label but no instruction), continue with next line
+		if(insnum <= -1) continue;
 
 		// Line parsed, write parsed stuff
 
