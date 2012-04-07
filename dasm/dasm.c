@@ -4,6 +4,11 @@
 static const char* dinsNames[] = DINSNAMES;
 static const char* valNames[] = VALNAMES;
 
+// Assembler directives
+#define NUM_AD (AD_Dw + 1)
+typedef enum {AD_Dw} AsmDir;
+static const char* adNames[NUM_AD] = {".DW"};
+
 int logLevel;
 static int lineNumber = 0;
 
@@ -269,14 +274,16 @@ void Assemble(const char* ifilename, uint16_t* ram)
 			}
 			else 
 
-			// An instruction
+			// An instruction or assembly directive
 			if(toknum == 0){
 				insnum = -1;
 
-				// Pseudo instructions
-				if(!strcmp(token, "DB")){
-					LogD("db pseudo");
-					insnum = -2;
+				// Assembly directives
+				for(int i = 0; i < AD_NUM; i++){
+					if(!strcmp(adNames[i], token)){
+						LogD("Directive: %s", token);
+						insnum = -2 - i;
+					}
 				}
 
 				// Actual instructions
