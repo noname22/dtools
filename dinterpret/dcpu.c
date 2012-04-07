@@ -93,7 +93,10 @@ void Mul(Dcpu* me, uint16_t* v1, uint16_t* v2)
 
 void Div(Dcpu* me, uint16_t* v1, uint16_t* v2)
 {
-	if(!*v2) me->o = *v1 = 0;
+	if(!*v2){
+		me->o = *v1 = 0;
+		return;
+	}
 	me->o = (((uint32_t)*v1 << 16) / ((uint32_t)*v2)) & 0xffff;
 	*v1 /= *v2;
 	me->cycles += 3;
@@ -101,7 +104,10 @@ void Div(Dcpu* me, uint16_t* v1, uint16_t* v2)
 
 void Mod(Dcpu* me, uint16_t* v1, uint16_t* v2)
 {
-	if(!*v2) me->o = *v1 = 0;
+	if(!*v2){
+		me->o = *v1 = 0;
+		return;
+	}
 	*v1 %= *v2;
 	me->cycles += 3;
 }
