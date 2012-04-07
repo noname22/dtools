@@ -7,8 +7,11 @@ static const char* valNames[] = VALNAMES;
 // Assembler directives
 #define AD_NUM (AD_Dw + 1)
 #define AD2INS(_n) (-2 - (_n))
-typedef enum {AD_Org, AD_Define, AD_Dw} AsmDir;
-static const char* adNames[AD_NUM] = {".ORG", ".DEFINE", ".DW"};
+#define INS2AD(_n) (-(_n) - 2)
+
+typedef enum                           { AD_Org, AD_Define, AD_Reserve, AD_Fill, AD_IncBin, AD_Dw } AsmDir;
+static const char* adNames[AD_NUM] =   { ".ORG", ".DEFINE", ".RESERVE", ".FILL", ".INCBIN", ".DW" };
+int                adNumArgs[AD_NUM] = {    1,       2,         1,         2,        2,       -1  };
 
 int logLevel;
 static int lineNumber = 0;
@@ -216,6 +219,16 @@ uint16_t ParseLiteral(const char* str)
 	return ret;
 }
 
+void UnquoteStr(char* target, const char* str)
+{
+	LAssertError(
+		(STARTSWITH(str, '"') && ENDSWITH(str, '"')) ||
+		(STARTSWITH(str, '\'') && ENDSWITH(str, '\'')), 
+		"Error parsing quoted string: %s", str);
+
+	strncpy(target, str + 1, strlen(str) - 2);
+}
+
 void PreProcess(Defines* defines, char* str)
 {
 	Define* it;
@@ -238,6 +251,8 @@ void Assemble(const char* ifilename, uint16_t* ram)
 	bool done = false;
 				
 	uint16_t addr = 0;
+	uint16_t lastAddr = 0xffff;
+
 	Labels* labels = Labels_Create();
 
 	Defines defines;
@@ -259,6 +274,9 @@ void Assemble(const char* ifilename, uint16_t* ram)
 		uint8_t operands[2] = {0, 0};
 		unsigned int nextWord[2] = {0, 0};
 		char* opLabels[2] = {NULL, NULL};
+		char ibFile[512]; // file for incbin
+
+		uint16_t tmp = 0;
 		
 		if(StrEmpty(line)) continue;
 
@@ -268,6 +286,9 @@ void Assemble(const char* ifilename, uint16_t* ram)
 			line = GetToken(line, token);
 			
 			if(StrEmpty(token)) break;
+	
+			char tokenUpper[512];
+			for(int i = 0; i < strlen(token) + 1; i++) tokenUpper[i] = toupper(token[i]);
 
 			// A label, add it and continue	
 			if(toknum == 0 && STARTSWITH(token, ':')) {
@@ -277,8 +298,14 @@ void Assemble(const char* ifilename, uint16_t* ram)
 
 			// Handle arguments to directives
 			if(toknum > 0 && insnum < -1){
+				AsmDir ad = INS2AD(insnum);
+
+				LAssertError(adNumArgs[ad] == -1 || toknum <= adNumArgs[ad],
+					"%s expects %d arguments", adNames[ad], adNumArgs[ad]);
+
 				// .DW
-			 	if(insnum == AD2INS(AD_Dw)){
+
+			 	if(ad == AD_Dw){
 					LogD(".dw data");
 					// characters on 'c' format
 					if(token[0] == '\''){
@@ -302,14 +329,34 @@ void Assemble(const char* ifilename, uint16_t* ram)
 				}
 
 				// .ORG
-				if(insnum == AD2INS(AD_Org)) addr = ParseLiteral(token);
+				else if(ad == AD_Org) addr = ParseLiteral(token);
 		
 				// .DEFINE
-				if(insnum == AD2INS(AD_Define)){	
-					LAssertError(toknum <= 2, "too many arguments for .DEFINE");
+				else if(ad == AD_Define){	
 					def.searchReplace[toknum - 1] = strdup(token);
 					if(toknum == 2) Vector_Add(defines, def); 
 				}	
+
+				// .FILL
+				else if(ad == AD_Fill){
+					if(toknum == 1) tmp = ParseLiteral(token);
+					else{
+						uint16_t c = ParseLiteral(token);
+						for(int i = 0; i < tmp; i++) Write(c);
+					}
+				}
+
+				// .RESERVE
+				else if(ad == AD_Reserve) addr += ParseLiteral(token);
+
+				// .INCBIN
+				else if(ad == AD_IncBin){
+					if(toknum == 1) UnquoteStr(ibFile, token);
+					if(toknum == 2){
+						DByteOrder bo = (!strcmp(tokenUpper, "BE")) ? DBO_BigEndian : DBO_LittleEndian;
+						addr += LoadRamMax(ram + addr, ibFile, lastAddr - addr, bo);
+					}
+				}
 			}
 
 			// An instruction or assembly directive
@@ -318,7 +365,7 @@ void Assemble(const char* ifilename, uint16_t* ram)
 
 				// Assembly directives
 				for(int i = 0; i < AD_NUM; i++){
-					if(!strcmp(adNames[i], token)){
+					if(!strcmp(adNames[i], tokenUpper)){
 						LogD("Directive: %s", token);
 						insnum = AD2INS(i);
 						goto done_searching;
@@ -327,7 +374,7 @@ void Assemble(const char* ifilename, uint16_t* ram)
 
 				// Actual instructions
 				for(int i = 0; i < DINS_NUM; i++){
-					if(!strcmp(dinsNames[i], token)) {
+					if(!strcmp(dinsNames[i], tokenUpper)) {
 						insnum = i;
 						goto done_searching;
 					}

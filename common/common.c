@@ -16,18 +16,28 @@ void WriteRam(uint16_t* ram, const char* filename)
 	fclose(out);
 }
 
-void LoadRam(uint16_t* ram, const char* filename)
+int LoadRamMax(uint16_t* ram, const char* filename, uint16_t lastAddr, DByteOrder bo)
 {
 	FILE* f = fopen(filename, "r");
-	LAssert(f, "could not open file");
+	LAssert(f, "could not open file: %s", filename);
 	
 	int addr = 0;
 
 	for(;;){
 		int c1 = 0, c2 = 0;
 		if((c1 = fgetc(f)) == EOF || (c2 = fgetc(f)) == EOF) break;
-		ram[addr++] = (c2 & 0xff) << 8 | (c1 & 0xff);
+		if(bo == DBO_LittleEndian) 	ram[addr] = (c2 & 0xff) << 8 | (c1 & 0xff);
+		else 				ram[addr] = (c1 & 0xff) << 8 | (c2 & 0xff);
+		if(addr >= lastAddr) break;
+		addr++;
 	}
+
+	return (int)addr + 1;
+}
+
+void LoadRam(uint16_t* ram, const char* filename)
+{
+	LoadRamMax(ram, filename, 0xffff, DBO_LittleEndian);
 }
 
 void DumpRam(uint16_t* ram)
