@@ -9,9 +9,9 @@ static const char* valNames[] = VALNAMES;
 #define AD2INS(_n) (-2 - (_n))
 #define INS2AD(_n) (-(_n) - 2)
 
-typedef enum                           { AD_Org, AD_Define, AD_Reserve, AD_Fill, AD_IncBin, AD_Dw } AsmDir;
-static const char* adNames[AD_NUM] =   { ".ORG", ".DEFINE", ".RESERVE", ".FILL", ".INCBIN", ".DW" };
-int                adNumArgs[AD_NUM] = {    1,       2,         1,         2,        2,       -1  };
+typedef enum                           { AD_Org, AD_Define, AD_Reserve, AD_Fill, AD_IncBin, AD_Dat, AD_Dw } AsmDir;
+static const char* adNames[AD_NUM] =   { ".ORG", ".DEFINE", ".RESERVE", ".FILL", ".INCBIN", "DAT",  ".DW" };
+int                adNumArgs[AD_NUM] = {    1,       2,         1,         2,        2,       -1,     -1  };
 
 int logLevel;
 static int lineNumber = 0;
@@ -140,7 +140,7 @@ char* GetToken(char* buffer, char* token)
 	char expecting = 0;
 
 	while((expecting || (*buffer > 32 && *buffer != ',')) && *buffer != 0){
-		if(*buffer == '\"' || *buffer == '\''){
+		if(*buffer == '\"'){
 			if(expecting && expecting == *buffer) expecting = 0;
 			else expecting = *buffer;
 		}
@@ -303,9 +303,9 @@ void Assemble(const char* ifilename, uint16_t* ram)
 				LAssertError(adNumArgs[ad] == -1 || toknum <= adNumArgs[ad],
 					"%s expects %d arguments", adNames[ad], adNumArgs[ad]);
 
-				// .DW
+				// .DW / DAT
 
-			 	if(ad == AD_Dw){
+			 	if(ad == AD_Dw || ad == AD_Dat){
 					LogD(".dw data");
 					// characters on 'c' format
 					if(token[0] == '\''){
