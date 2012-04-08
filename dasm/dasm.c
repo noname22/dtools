@@ -181,13 +181,30 @@ DVals ParseOperand(const char* tok, unsigned int* nextWord, char** label)
 	if(!strcmp(token, "sp")) return DV_SP;
 	if(!strcmp(token, "pc")) return DV_PC;
 	if(!strcmp(token, "o")) return DV_O;
+
+	char buffer[512];
 	
 	// [literal + register]
 	if(sscanf(token, "[0x%x+%c]", nextWord, &c) == 2 || sscanf(token, "[%u+%c]", nextWord, &c) == 2)
 		return DV_RefRegNextWordBase + lookUpReg(c, true);
+
+	// [label + register]
+	if(sscanf(token, "[%[^+]+%c]", buffer, &c) == 2){
+		*nextWord = 0;
+		*label = strdup(buffer);
+		return DV_RefRegNextWordBase + lookUpReg(c, true);
+	}
 	
 	// [literal]
 	if(sscanf(token, "[0x%x]", nextWord) || sscanf(token, "[%u]", nextWord) == 1) return DV_RefNextWord;
+
+	// [label]
+	if(sscanf(token, "[%[^]]]", buffer)){
+		*nextWord = 0;
+		*label = strdup(buffer);
+		return DV_RefNextWord;
+	}
+
 
 	// Literal or NextWord
 	if(sscanf(token, "0x%x", nextWord) == 1 || sscanf(token, "%u", nextWord) == 1){
