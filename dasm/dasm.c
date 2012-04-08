@@ -1,6 +1,8 @@
 #include "cvector.h"
 #include "common.h"
 
+#define MAX_STR_SIZE 8192
+
 static const char* dinsNames[] = DINSNAMES;
 static const char* valNames[] = VALNAMES;
 
@@ -19,17 +21,24 @@ static int lineNumber = 0;
 #define ENDSWITH(__str, __c) (__str)[strlen(__str) - 1] == (__c)
 #define STARTSWITH(__str, __c) ((__str)[0] == (__c))
 #define LAssertError(__v, ...) if(!(__v)){ LogI("line: %d", lineNumber); LogF(__VA_ARGS__); exit(1); }
-typedef Vector(uint16_t) U16Vec;
 
 typedef struct { char* searchReplace[2]; } Define;
 typedef Vector(Define) Defines;
+
+typedef struct
+{
+	uint16_t addr;
+	int lineNumber;
+} LabelRef;
+
+typedef Vector(LabelRef) LabelRefs;
 
 typedef struct {
 	char* label;
 	uint16_t addr;
 	uint16_t id;
 	bool found;
-	U16Vec positions;
+	LabelRefs references;
 } Label;
 
 typedef Vector(Label) Labels; 
@@ -60,7 +69,7 @@ Label* Labels_Add(Labels* me, const char* label)
 	memset(&l, 0, sizeof(Label));
 	l.label = strdup(label);
 	l.id = me->count;
-	Vector_Init(l.positions, uint16_t);
+	Vector_Init(l.references, LabelRef);
 
 	Vector_Add(*me, l);
 
@@ -75,12 +84,17 @@ void Labels_Define(Labels* me, const char* label, uint16_t address)
 	l->found = true;
 } 
 
-uint16_t Labels_Get(Labels* me, const char* label, uint16_t current)
+uint16_t Labels_Get(Labels* me, const char* label, uint16_t current, int lineNumber)
 {
 	Label* l = Labels_Lookup(me, label);
 	if(!l) l = Labels_Add(me, label);
 
-	Vector_Add(l->positions, current);
+	LabelRef ref;
+
+	ref.lineNumber = lineNumber;
+	ref.addr = current;
+
+	Vector_Add(l->references, ref);
 
 	return l->id;
 }
@@ -93,13 +107,22 @@ void Labels_Replace(Labels* me, uint16_t* ram)
 
 	Label* l;
 	Vector_ForEach(*me, l){
-		LAssert(l->found, "No such label: %s", l->label);
+		if(!l->found){
+			LogF("No such label: %s", l->label);
+			LogI("Referenced from:");
+
+			LabelRef* ref;
+			Vector_ForEach(l->references, ref){
+				LogI("  line: %d", ref->lineNumber);
+			}
+			exit(1);
+		}
 		LogD("label: %s", l->label);
 
-		uint16_t* pos;
-		Vector_ForEach(l->positions, pos){
-			ram[*pos] = l->addr;
-			LogD("replaced label %s @ 0x%04x with 0x%04x", l->label, *pos, l->addr);
+		LabelRef* ref;
+		Vector_ForEach(l->references, ref){
+			ram[ref->addr] = l->addr;
+			LogD("replaced label %s @ 0x%04x with 0x%04x", l->label, ref->addr, l->addr);
 		}
 	}
 }
@@ -154,10 +177,26 @@ char* GetToken(char* buffer, char* token)
 	return buffer;
 }
 
+uint16_t ParseLiteral(const char* str, bool* success, bool failOnError)
+{
+	unsigned lit = 0xaaaa;
+
+	if(sscanf(str, "0x%x", &lit) == 1 || sscanf(str, "%u", &lit) == 1){
+		LAssertError(lit < 0x10000, "Literal number must be in range 0 - 65535 (0xFFFF)");
+		if(success) *success = true;
+		return lit;
+	}
+
+	LAssertError(!failOnError, "could not parse literal: %s", str)
+	if(success) *success = false;
+
+	return lit;
+}
+
 DVals ParseOperand(const char* tok, unsigned int* nextWord, char** label)
 {
 	char c;
-	char token[512];
+	char token[MAX_STR_SIZE];
 	strcpy(token, tok);
 
 	for(int i = 0; i < strlen(token); i++) token[i] = tolower(token[i]);
@@ -169,6 +208,9 @@ DVals ParseOperand(const char* tok, unsigned int* nextWord, char** label)
 		LAssertError(!fail, "No such register: %c", c);
 		return -1;
 	}
+		
+
+	LogD("parsing operand: %s", tok);
 
 	*label = NULL;
 
@@ -176,65 +218,64 @@ DVals ParseOperand(const char* tok, unsigned int* nextWord, char** label)
 	if(!strcmp(token, "pop") || !strcmp(token, "[sp++]")) return DV_Pop;
 	if(!strcmp(token, "peek") || !strcmp(token, "[sp]")) return DV_Peek;
 	if(!strcmp(token, "push") || !strcmp(token, "[--sp]")) return DV_Push;
-
+	
 	// SP, PC
 	if(!strcmp(token, "sp")) return DV_SP;
 	if(!strcmp(token, "pc")) return DV_PC;
 	if(!strcmp(token, "o")) return DV_O;
 
-	char buffer[512];
+	char buffer[MAX_STR_SIZE];
 	
-	// [literal + register]
-	if(sscanf(token, "[0x%x+%c]", nextWord, &c) == 2 || sscanf(token, "[%u+%c]", nextWord, &c) == 2)
-		return DV_RefRegNextWordBase + lookUpReg(c, true);
-
-	// [label + register]
+	// [nextword + register]
 	if(sscanf(token, "[%[^+]+%c]", buffer, &c) == 2){
+		// 0x1 or 1...
+		bool isLiteral = false;
+		*nextWord = ParseLiteral(buffer, &isLiteral, false);
+		if(isLiteral) goto done_parsing;
+
+		// label
 		*nextWord = 0;
 		*label = strdup(buffer);
+
+		done_parsing:
 		return DV_RefRegNextWordBase + lookUpReg(c, true);
 	}
-	
-	// [literal]
-	if(sscanf(token, "[0x%x]", nextWord) || sscanf(token, "[%u]", nextWord) == 1) return DV_RefNextWord;
 
-	// [label]
 	if(sscanf(token, "[%[^]]]", buffer)){
+		// [register]
+		int reg = -1;
+		if(buffer[1] == 0 && (reg = lookUpReg(*buffer, false) != -1)) return DV_RefBase + reg;
+
+		// [nextword]
+		bool isLiteral = false;
+		*nextWord = ParseLiteral(buffer, &isLiteral, false);
+		if(isLiteral) return DV_RefNextWord;
+	
+		// [label]
 		*nextWord = 0;
 		*label = strdup(buffer);
 		return DV_RefNextWord;
 	}
 
-
-	// Literal or NextWord
-	if(sscanf(token, "0x%x", nextWord) == 1 || sscanf(token, "%u", nextWord) == 1){
-		LAssertError(*nextWord < 0x10000, "Literal number must be in range 0 - 65535 (0xFFFF)");
+	// literal or nextword
+	bool isLiteral = false;
+	*nextWord = ParseLiteral(tok, &isLiteral, false);
+	if(isLiteral){
 		if(*nextWord < 0x20) return DV_LiteralBase + *nextWord;
 		return DV_NextWord;
 	}
 
-	// [register]
-	if(sscanf(token, "[%c]", &c) == 1) return DV_RefBase + lookUpReg(c, true);
-	
 	// register
 	if(strlen(token) == 1 && sscanf(token, "%c", &c) == 1){
 		int reg = lookUpReg(c, false);
 		if(reg != -1) return DV_A + reg;
 	}
 
-	// Label
+	// label
 	*nextWord = 0;
 	*label = strdup(tok);
 	
 	return DV_NextWord;
-}
-
-uint16_t ParseLiteral(const char* str)
-{
-	unsigned int ret = 0xaaaa;
-	if(sscanf(str, "0x%x", &ret) == 1 || sscanf(str, "%u", &ret) == 1) return ret;
-	LAssertError(false, "could not parse literal: %s", str)
-	return ret;
 }
 
 void UnquoteStr(char* target, const char* str)
@@ -252,7 +293,7 @@ void PreProcess(Defines* defines, char* str)
 	Define* it;
 	Vector_ForEach(*defines, it){
 		// XXX: optimize this
-		char buffer[512];
+		char buffer[MAX_STR_SIZE];
 		StrReplace(buffer, str, it->searchReplace[0], it->searchReplace[1]);
 		strcpy(str, buffer);
 	}
@@ -263,8 +304,8 @@ uint16_t Assemble(const char* ifilename, uint16_t* ram)
 	FILE* in = fopen(ifilename, "r");
 	LAssert(in, "could not open file: %s", ifilename);
 
-	char buffer[512];
-	char token[512];
+	char buffer[MAX_STR_SIZE];
+	char token[MAX_STR_SIZE];
 
 	bool done = false;
 				
@@ -292,7 +333,7 @@ uint16_t Assemble(const char* ifilename, uint16_t* ram)
 		uint8_t operands[2] = {0, 0};
 		unsigned int nextWord[2] = {0, 0};
 		char* opLabels[2] = {NULL, NULL};
-		char ibFile[512]; // file for incbin
+		char ibFile[MAX_STR_SIZE]; // file for incbin
 
 		uint16_t tmp = 0;
 		
@@ -305,7 +346,7 @@ uint16_t Assemble(const char* ifilename, uint16_t* ram)
 			
 			if(StrEmpty(token)) break;
 	
-			char tokenUpper[512];
+			char tokenUpper[MAX_STR_SIZE];
 			for(int i = 0; i < strlen(token) + 1; i++) tokenUpper[i] = toupper(token[i]);
 
 			// A label, add it and continue	
@@ -338,12 +379,12 @@ uint16_t Assemble(const char* ifilename, uint16_t* ram)
 					// Literal number (hex or dec)
 					else{ 
 						LogD("Literal: %s", token);
-						Write(ParseLiteral(token));		
+						Write(ParseLiteral(token, NULL, true));
 					}
 				}
 
 				// .ORG
-				else if(ad == AD_Org) addr = ParseLiteral(token);
+				else if(ad == AD_Org) addr = ParseLiteral(token, NULL, true);
 		
 				// .DEFINE
 				else if(ad == AD_Define){	
@@ -353,15 +394,15 @@ uint16_t Assemble(const char* ifilename, uint16_t* ram)
 
 				// .FILL
 				else if(ad == AD_Fill){
-					if(toknum == 1) tmp = ParseLiteral(token);
+					if(toknum == 1) tmp = ParseLiteral(token, NULL, true);
 					else{
-						uint16_t c = ParseLiteral(token);
+						uint16_t c = ParseLiteral(token, NULL, true);
 						for(int i = 0; i < tmp; i++) Write(c);
 					}
 				}
 
 				// .RESERVE
-				else if(ad == AD_Reserve) addr += ParseLiteral(token);
+				else if(ad == AD_Reserve) addr += ParseLiteral(token, NULL, true);
 
 				// .INCBIN
 				else if(ad == AD_IncBin){
@@ -451,7 +492,7 @@ uint16_t Assemble(const char* ifilename, uint16_t* ram)
 			if(opHasNextWord(v)){
 				// This refers to a label
 				if(opLabels[i]){
-					Labels_Get(labels, opLabels[i], addr);
+					Labels_Get(labels, opLabels[i], addr, lineNumber);
 					free(opLabels[i]);
 				}
 
