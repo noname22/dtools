@@ -38,9 +38,11 @@ int main(int argc, char** argv)
 	if(logLevel <= 1) DumpRam(ram, GetUsedRam(ram));
 
 	while(Dcpu_Execute(cpu, 10)){}
+	int returnValue = Dcpu_GetRegister(cpu, DR_A);
 	
 	LogV("Ram after execution:");
 	if(logLevel <= 1) DumpRam(ram, GetUsedRam(ram));
 
 	Dcpu_Destroy(&cpu);
+	return returnValue;
 }
