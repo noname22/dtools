@@ -4,4 +4,4 @@
 	SYS 0            ; syscall 0 -> end program
 
 	; message, newline, null termination 
-:msg 	DB "Hello, World!", 0xa, 0x0
+:msg 	.dw "Hello, World!", 0xa, 0x0
