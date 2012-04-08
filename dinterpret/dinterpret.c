@@ -27,19 +27,20 @@ int main(int argc, char** argv)
 	LAssert(argc == 2, "usage: %s [dcpu-16 binary]", argv[0]);
 
 	Dcpu* cpu = Dcpu_Create();
+	uint16_t* ram = Dcpu_GetRam(cpu);
 	
 	Dcpu_SetSysCall(cpu, SysRead, 1, NULL);
 	Dcpu_SetSysCall(cpu, SysWrite, 2, NULL);
 
-	LoadRam(Dcpu_GetRam(cpu), argv[1]);
+	LoadRam(ram, argv[1]);
 
 	LogV("Ram before execution:");
-	if(logLevel <= 1) DumpRam(Dcpu_GetRam(cpu));
+	if(logLevel <= 1) DumpRam(ram, GetUsedRam(ram));
 
 	while(Dcpu_Execute(cpu, 10)){}
 	
 	LogV("Ram after execution:");
-	if(logLevel <= 1) DumpRam(Dcpu_GetRam(cpu));
+	if(logLevel <= 1) DumpRam(ram, GetUsedRam(ram));
 
 	Dcpu_Destroy(&cpu);
 }

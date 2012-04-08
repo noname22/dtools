@@ -15,8 +15,9 @@
 extern int logLevel;
 typedef enum {DBO_LittleEndian, DBO_BigEndian } DByteOrder;
 
-void DumpRam(uint16_t* ram);
-void WriteRam(uint16_t* ram, const char* filename);
+uint16_t GetUsedRam(uint16_t* ram);
+void DumpRam(uint16_t* ram, uint16_t end);
+void WriteRam(uint16_t* ram, const char* filename, uint16_t len);
 void LoadRam(uint16_t* ram, const char* filename);
 bool opHasNextWord(uint16_t v);
 char* StrReplace(char* target, const char* str, const char* what, const char* with);

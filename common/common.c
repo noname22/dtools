@@ -1,12 +1,9 @@
 #include "common.h"
 
-void WriteRam(uint16_t* ram, const char* filename)
+void WriteRam(uint16_t* ram, const char* filename, uint16_t end)
 {
 	FILE* out = fopen(filename, "w");
 	LAssert(out, "could not open new file for writing: %s", filename);
-
-	int end = 0xffff;
-	while(ram[--end] == 0);
 
 	for(int i = 0; i < end + 1; i++){
 		fputc(ram[i] & 0xff, out);
@@ -40,11 +37,15 @@ void LoadRam(uint16_t* ram, const char* filename)
 	LoadRamMax(ram, filename, 0xffff, DBO_LittleEndian);
 }
 
-void DumpRam(uint16_t* ram)
+uint16_t GetUsedRam(uint16_t* ram)
 {
 	int end = 0xffff;
 	while(ram[--end] == 0);
+	return end;
+}
 
+void DumpRam(uint16_t* ram, uint16_t end)
+{
 	for(int i = 0; i < end + 1; i++){
 		if(i % 8 == 0) printf("\n%04x: ", i);
 		printf("%04x ", ram[i]);

@@ -213,9 +213,9 @@ DVals ParseOperand(const char* tok, unsigned int* nextWord, char** label)
 
 uint16_t ParseLiteral(const char* str)
 {
-	unsigned int ret;
-	if(sscanf(str, "0x%x", &ret) || sscanf(str, "%u", &ret)) return ret;
-	LAssertError(0, "could not parse literal: %s", str)
+	unsigned int ret = 0xaaaa;
+	if(sscanf(str, "0x%x", &ret) == 1 || sscanf(str, "%u", &ret) == 1) return ret;
+	LAssertError(false, "could not parse literal: %s", str)
 	return ret;
 }
 
@@ -240,7 +240,7 @@ void PreProcess(Defines* defines, char* str)
 	}
 }
 
-void Assemble(const char* ifilename, uint16_t* ram)
+uint16_t Assemble(const char* ifilename, uint16_t* ram)
 {
 	FILE* in = fopen(ifilename, "r");
 	LAssert(in, "could not open file: %s", ifilename);
@@ -307,15 +307,8 @@ void Assemble(const char* ifilename, uint16_t* ram)
 
 			 	if(ad == AD_Dw || ad == AD_Dat){
 					LogD(".dw data");
-					// characters on 'c' format
-					if(token[0] == '\''){
-						LAssert(strlen(token) == 3, "syntax error");
-						LAssert(ENDSWITH(token, '\''), "expected \'");
-						Write(token[1]);
-					}
-
 					// List of characters on the "string" format
-					else if(token[0] == '"'){
+					if(token[0] == '"'){
 						LAssert(ENDSWITH(token, '"'), "expected \"");
 						int len = strlen(token) - 2;
 						for(int i = 0; i < len; i++){
@@ -325,7 +318,10 @@ void Assemble(const char* ifilename, uint16_t* ram)
 					}
 
 					// Literal number (hex or dec)
-					else Write(ParseLiteral(token));
+					else{ 
+						LogD("Literal: %s", token);
+						Write(ParseLiteral(token));		
+					}
 				}
 
 				// .ORG
@@ -457,6 +453,8 @@ void Assemble(const char* ifilename, uint16_t* ram)
 	Labels_Replace(labels, ram);
 
 	fclose(in);
+
+	return addr;
 }
 
 int main(int argc, char** argv)
@@ -495,12 +493,12 @@ int main(int argc, char** argv)
 	uint16_t* ram = malloc(sizeof(uint16_t) * 0x10000);
 
 	LogV("Assembling: %s", files[0]);
-	Assemble(files[0], ram);	
+	uint16_t len = Assemble(files[0], ram);	
 
-	if(logLevel == 0) DumpRam(ram);
+	if(logLevel == 0) DumpRam(ram, len - 1);
 
 	LogV("Writing to: %s", files[1]);
-	WriteRam(ram, files[1]);
+	WriteRam(ram, files[1], len - 1);
 
 	free(ram);
 	return 0;
