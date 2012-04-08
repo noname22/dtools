@@ -11,16 +11,18 @@ static const char* valNames[] = VALNAMES;
 #define AD2INS(_n) (-2 - (_n))
 #define INS2AD(_n) (-(_n) - 2)
 
-typedef enum                           { AD_Org, AD_Define, AD_Reserve, AD_Fill, AD_IncBin, AD_Dat, AD_Dw } AsmDir;
-static const char* adNames[AD_NUM] =   { ".ORG", ".DEFINE", ".RESERVE", ".FILL", ".INCBIN", "DAT",  ".DW" };
-int                adNumArgs[AD_NUM] = {    1,       2,         1,         2,        2,       -1,     -1  };
+typedef enum                           { AD_Org, AD_Define, AD_Reserve, AD_Fill, AD_IncBin, AD_Include, AD_Dat, AD_Dw } AsmDir;
+static const char* adNames[AD_NUM] =   { ".ORG", ".DEFINE", ".RESERVE", ".FILL", ".INCBIN", ".INCLUDE",  "DAT",  ".DW" };
+int                adNumArgs[AD_NUM] = {    1,       2,         1,         2,        2,       1,          -1,     -1  };
 
 int logLevel;
 static int lineNumber = 0;
+static const char* currentFile = NULL;
+static char baseDir[MAX_STR_SIZE];
 
 #define ENDSWITH(__str, __c) (__str)[strlen(__str) - 1] == (__c)
 #define STARTSWITH(__str, __c) ((__str)[0] == (__c))
-#define LAssertError(__v, ...) if(!(__v)){ LogI("line: %d", lineNumber); LogF(__VA_ARGS__); exit(1); }
+#define LAssertError(__v, ...) if(!(__v)){ if(currentFile){ LogI("%s: %d", currentFile, lineNumber); } LogF(__VA_ARGS__); exit(1); }
 
 typedef struct { char* searchReplace[2]; } Define;
 typedef Vector(Define) Defines;
@@ -278,14 +280,14 @@ DVals ParseOperand(const char* tok, unsigned int* nextWord, char** label)
 	return DV_NextWord;
 }
 
-void UnquoteStr(char* target, const char* str)
+char* UnquoteStr(char* target, const char* str)
 {
 	LAssertError(
 		(STARTSWITH(str, '"') && ENDSWITH(str, '"')) ||
 		(STARTSWITH(str, '\'') && ENDSWITH(str, '\'')), 
 		"Error parsing quoted string: %s", str);
 
-	strncpy(target, str + 1, strlen(str) - 2);
+	return strncpy(target, str + 1, strlen(str) - 2);
 }
 
 void PreProcess(Defines* defines, char* str)
@@ -299,32 +301,37 @@ void PreProcess(Defines* defines, char* str)
 	}
 }
 
-uint16_t Assemble(const char* ifilename, uint16_t* ram)
+uint16_t Assemble(const char* ifilename, uint16_t* ram, int addr, Labels* labels, Defines* defines, uint16_t lastAddr)
 {
+	LogV("Assembling: %s", ifilename);
+	LogD("at address: 0x%x", addr);
+
 	FILE* in = fopen(ifilename, "r");
-	LAssert(in, "could not open file: %s", ifilename);
+	LAssertError(in, "could not open file: %s", ifilename);
+
+	const char* saveFile = currentFile;
+	int saveLineNumber = lineNumber;
+
+	currentFile = ifilename;
+	lineNumber = 1;
 
 	char buffer[MAX_STR_SIZE];
 	char token[MAX_STR_SIZE];
 
 	bool done = false;
-				
-	uint16_t addr = 0;
-	uint16_t lastAddr = 0xffff;
-
-	Labels* labels = Labels_Create();
-
-	Defines defines;
-	Vector_Init(defines, Define);
 
 	do{
 		int wrote = 0;
-		void Write(uint16_t val){ ram[addr++] = val; wrote++; }
+		void Write(uint16_t val){
+			LAssertError(addr <= lastAddr, "Out of space in binary, at last address %x", lastAddr);
+			ram[addr++] = val;
+			wrote++;
+		}
 
 		char* line = buffer;
 
 		done = GetLine(in, line);
-		PreProcess(&defines, line);
+		PreProcess(defines, line);
 
 		int insnum = -1;
 		Define def;
@@ -389,7 +396,7 @@ uint16_t Assemble(const char* ifilename, uint16_t* ram)
 				// .DEFINE
 				else if(ad == AD_Define){	
 					def.searchReplace[toknum - 1] = strdup(token);
-					if(toknum == 2) Vector_Add(defines, def); 
+					if(toknum == 2) Vector_Add(*defines, def); 
 				}	
 
 				// .FILL
@@ -408,9 +415,18 @@ uint16_t Assemble(const char* ifilename, uint16_t* ram)
 				else if(ad == AD_IncBin){
 					if(toknum == 1) UnquoteStr(ibFile, token);
 					if(toknum == 2){
+						char buffer[MAX_STR_SIZE];
+						sprintf(buffer, "%s%s", baseDir, ibFile);
 						DByteOrder bo = (!strcmp(tokenUpper, "BE")) ? DBO_BigEndian : DBO_LittleEndian;
-						addr += LoadRamMax(ram + addr, ibFile, lastAddr - addr, bo);
+						addr += LoadRamMax(ram + addr, buffer, lastAddr - addr, bo);
 					}
+				}
+
+				// .INCLUDE
+				else if(ad == AD_Include){
+					char buffer[MAX_STR_SIZE];
+					sprintf(buffer, "%s%s", baseDir, UnquoteStr(ibFile, token));
+					addr = Assemble(buffer, ram, addr, labels, defines, lastAddr);
 				}
 			}
 
@@ -512,8 +528,21 @@ uint16_t Assemble(const char* ifilename, uint16_t* ram)
 	Labels_Replace(labels, ram);
 
 	fclose(in);
+	
+	currentFile = saveFile;
+	lineNumber = saveLineNumber;
 
 	return addr;
+}
+
+char* GetDir(const char* filename, char* buffer)
+{
+	int last = 0;
+	for(int i = 0; i < strlen(filename); i++){
+		if(filename[i] == '\\' || filename[i] == '/') last = i + 1;
+	}
+
+	return strncpy(buffer, filename, last);	
 }
 
 int main(int argc, char** argv)
@@ -521,6 +550,9 @@ int main(int argc, char** argv)
 	logLevel = 2;
 
 	int atFile = 0;
+	unsigned addr = 0;
+	unsigned lastAddr = 0xffff;
+
 	const char* files[2] = {NULL, NULL};
 	const char* usage = "usage: %s (-vX | -h) [dasm file] [out binary]";
 
@@ -532,10 +564,12 @@ int main(int argc, char** argv)
 				LogI(" ");
 				LogI("Available flags:");
 				LogI("  -vX   set log level, where X is [0-5] - default: 2");
+				LogI("  -sX   set assembly start address [0-FFFF] - default 0");
 				LogI("  -h    show this help message");
 				return 0;
 			}
 			else if(sscanf(v, "-v%d", &logLevel) == 1){}
+			else if(sscanf(v, "-s%x", &addr) == 1){}
 			else{
 				LogF("No such flag: %s", v);
 				return 1;
@@ -545,14 +579,21 @@ int main(int argc, char** argv)
 			files[atFile++] = v;
 		}
 	}
-	
+
 	LAssert(argc >= 3 && files[0] && files[1], usage, argv[0]);
+	LAssert(addr <= 0xffff, "Assembly start address must be within range 0 - 0xFFFF (not %x)", addr);
+	
+	GetDir(files[0], baseDir);
 	
 	// Allocate 64 kword RAM file
 	uint16_t* ram = malloc(sizeof(uint16_t) * 0x10000);
 
-	LogV("Assembling: %s", files[0]);
-	uint16_t len = Assemble(files[0], ram);	
+	Labels* labels = Labels_Create();
+
+	Defines defines;
+	Vector_Init(defines, Define);
+
+	uint16_t len = Assemble(files[0], ram, addr, labels, &defines, lastAddr);
 
 	if(logLevel == 0) DumpRam(ram, len - 1);
 
