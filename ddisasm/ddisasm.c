@@ -71,8 +71,6 @@ int main(int argc, char** argv)
 
 	LoadRam(ram, argv[1]);
 	
-	if(logLevel == 0) DumpRam(ram);
-
 	Disasm(ram);
 
 	free(ram);
