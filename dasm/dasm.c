@@ -243,8 +243,8 @@ DVals ParseOperand(const char* tok, unsigned int* nextWord, char** label)
 
 	if(sscanf(token, "[%[^]]]", buffer)){
 		// [register]
-		int reg = -1;
-		if(buffer[1] == 0 && (reg = lookUpReg(*buffer, false) != -1)) return DV_RefBase + reg;
+		int reg = lookUpReg(*buffer, false);
+		if(buffer[1] == 0 && reg != -1) return DV_RefBase + reg;
 
 		// [nextword]
 		bool isLiteral = false;
