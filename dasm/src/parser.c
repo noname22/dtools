@@ -214,7 +214,8 @@ uint16_t Assemble(Dasm* me, const char* ifilename, int addr, int depth)
 			if(toknum > 0 && insnum < -1){
 				AsmDir ad = INS2AD(insnum);
 
-				LAssertError(adNumArgs[ad] == -1 || toknum <= adNumArgs[ad],
+				LAssertError(adNumArgs[ad] == -1 || 
+					(toknum <= adNumArgs[ad] && toknum >= adNumArgs[ad]),
 					"%s expects %d arguments", adNames[ad], adNumArgs[ad]);
 
 				// .DW / DAT
@@ -309,11 +310,6 @@ uint16_t Assemble(Dasm* me, const char* ifilename, int addr, int depth)
 				operands[toknum - 1] = ParseOperand(me, token, nextWord + toknum - 1, opLabels + toknum - 1);
 				numOperands++;
 			}
-
-			else {
-				LogF("Error parsing");
-				exit(1);
-			}
 				
 			toknum++;
 		}
@@ -321,6 +317,9 @@ uint16_t Assemble(Dasm* me, const char* ifilename, int addr, int depth)
 		// Pseudo instruction handled (-2) or no instruction found 
 		// (probably a label but no instruction), continue with next line
 		if(insnum <= -1) continue;
+		
+		if(insnum < DINS_EXT_BASE){ LAssertError(toknum == 3, "baisc instructions expect 2 operands (not %d)", toknum - 1);}
+		else { LAssertError(toknum == 2, "extended instructions expect 1 operand (not %d)", toknum - 1); }
 
 		// Line parsed, write parsed stuff
 
@@ -349,7 +348,7 @@ uint16_t Assemble(Dasm* me, const char* ifilename, int addr, int depth)
 		// Write the instruction and its operands
 		uint16_t ins = (insnum & 0xf) | ((operands[0] & 0x3f) << 4) | ((operands[1] & 0x3f) << 10);
 		Write(ins);
-
+		
 		// Write "nextwords"
 		for(int i = 0; i < numOperands; i++){
 			int v = operands[i];
