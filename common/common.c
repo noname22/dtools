@@ -29,6 +29,8 @@ int LoadRamMax(uint16_t* ram, const char* filename, uint16_t lastAddr, DByteOrde
 		addr++;
 	}
 
+	fclose(f);
+
 	return (int)addr + 1;
 }
 

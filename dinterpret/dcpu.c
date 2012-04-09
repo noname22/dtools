@@ -165,6 +165,8 @@ Dcpu* Dcpu_Create()
 
 void Dcpu_Destroy(Dcpu** me)
 {
+	Vector_Free((*me)->sysCalls);
+
 	free((*me)->ram);
 	free(*me);
 	*me = NULL;
