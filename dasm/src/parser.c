@@ -215,7 +215,7 @@ uint16_t Assemble(Dasm* me, const char* ifilename, int addr, int depth)
 				AsmDir ad = INS2AD(insnum);
 
 				LAssertError(adNumArgs[ad] == -1 || 
-					(toknum <= adNumArgs[ad] && toknum >= adNumArgs[ad]),
+					(toknum <= adNumArgs[ad] && toknum + 1 >= adNumArgs[ad]),
 					"%s expects %d arguments", adNames[ad], adNumArgs[ad]);
 
 				// .DW / DAT
