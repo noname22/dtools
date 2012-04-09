@@ -253,7 +253,7 @@ int Dcpu_Execute(Dcpu* me, int execCycles)
 
 			// nextword + register reference
 			else if(vv >= DV_RefRegNextWordBase && vv <= DV_RefRegNextWordTop){
-				pv[i] = me->ram + val[i] + me->regs[vv - DV_RefRegNextWordBase];
+				pv[i] = me->ram + (uint16_t)(val[i] + me->regs[vv - DV_RefRegNextWordBase]);
 			}
 
 			else if(vv == DV_Pop)  pv[i] = me->ram + me->sp++;
