@@ -29,12 +29,18 @@ struct Dcpu {
 	InsPtr ins[DINS_NUM];
 };
 
+// Safely lookup a offset into ram, will wrap around to start.
+static uint16_t* Dcpu_GetRamSafe(Dcpu *me, int offset)
+{
+	return me->ram + (uint16_t)offset;
+}
+
 uint16_t Dcpu_Pop(Dcpu* me) { 
-	return me->ram[me->sp++]; 
+	return *Dcpu_GetRamSafe(me, me->sp++);
 }
 
 void Dcpu_Push(Dcpu* me, uint16_t v){
-	me->ram[--me->sp] = v;
+	*Dcpu_GetRamSafe(me, --me->sp) = v;
 }
 
 // Extended instructions
@@ -212,7 +218,7 @@ void Dcpu_DumpState(Dcpu* me)
 
 int Dcpu_Execute(Dcpu* me, int execCycles)
 {
-	#define READ (me->ram[me->pc++])
+	#define READ *Dcpu_GetRamSafe(me, me->pc++)
 	me->cycles = 0;
 
 	while(me->cycles < execCycles){
@@ -248,23 +254,23 @@ int Dcpu_Execute(Dcpu* me, int execCycles)
 
 			// register reference
 			else if(vv >= DV_RefBase && vv <= DV_RefTop){
-				pv[i] = me->ram + me->regs[vv - DV_RefBase];
+				pv[i] = Dcpu_GetRamSafe(me, me->regs[vv - DV_RefBase]);
 			}
 
 			// nextword + register reference
 			else if(vv >= DV_RefRegNextWordBase && vv <= DV_RefRegNextWordTop){
-				pv[i] = me->ram + (uint16_t)(val[i] + me->regs[vv - DV_RefRegNextWordBase]);
+				pv[i] = Dcpu_GetRamSafe(me, val[i] + me->regs[vv - DV_RefRegNextWordBase]);
 			}
 
-			else if(vv == DV_Pop)  pv[i] = me->ram + me->sp++;
-			else if(vv == DV_Peek) pv[i] = me->ram + me->sp;
-			else if(vv == DV_Push) pv[i] = me->ram + --me->sp;
+			else if(vv == DV_Pop)  pv[i] = Dcpu_GetRamSafe(me, me->sp++);
+			else if(vv == DV_Peek) pv[i] = Dcpu_GetRamSafe(me, me->sp);
+			else if(vv == DV_Push) pv[i] = Dcpu_GetRamSafe(me, --me->sp);
 
 			else if(vv == DV_SP) pv[i] = &me->sp;
 			else if(vv == DV_PC) pv[i] = &me->pc;
 			else if(vv == DV_O) pv[i] = &me->o; // XXX: O should be one bit?
 
-			else if(vv == DV_RefNextWord) pv[i] = me->ram + val[i];
+			else if(vv == DV_RefNextWord) pv[i] = Dcpu_GetRamSafe(me, val[i]);
 			else if(vv == DV_NextWord) pv[i] = val + i;
 			else if(vv >= DV_LiteralBase && vv <= DV_LiteralTop){
 				val[i] = vv - DV_LiteralBase;
