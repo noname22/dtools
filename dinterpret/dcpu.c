@@ -49,9 +49,12 @@ void NonBasic(Dcpu* me, uint16_t* v1, uint16_t* v2)
 	if(*v1 == DI_ExtJsr - DINS_EXT_BASE){
 		Dcpu_Push(me, me->pc);
 		me->pc = *v2;
+		me->cycles += 2;
 	}
 
 	else if(*v1 == DI_ExtSys - DINS_EXT_BASE){
+		me->cycles += 1;
+
 		if(*v2 == 0){
 			me->exit = true;
 			return;
@@ -70,6 +73,9 @@ void NonBasic(Dcpu* me, uint16_t* v1, uint16_t* v2)
 		}
 		if(!found) LogW("Invalid syscall: %d", *v2);
 	}
+
+	else
+		me->cycles += 1;
 }
 
 // Basic instructions
