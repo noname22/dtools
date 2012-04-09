@@ -1,0 +1,4 @@
+.include "inc1.dasm"
+.include "inc2.dasm"	
+	SET C, inc1label
+	SET X, inc2label

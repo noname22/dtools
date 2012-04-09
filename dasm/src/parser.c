@@ -84,9 +84,10 @@ DVals ParseOperand(Dasm* me, const char* tok, unsigned int* nextWord, char** lab
 		if(isLiteral){
 			b2 = buffer;
 			b1 = buffer2;
-
-			LogD("b1 '%s' b2 '%s'", b1, b2);
 		}
+
+		LogD("b1 '%s' b2 '%s'", b1, b2);
+		LogD("nw: %x", *nextWord);
 
 		// 0x1 or 1...
 		isLiteral = false;
@@ -323,10 +324,17 @@ uint16_t Assemble(Dasm* me, const char* ifilename, int addr, int depth)
 
 		// Line parsed, write parsed stuff
 
+		bool hasNw[] = {opHasNextWord(operands[0]), opHasNextWord(operands[1])};
+		
 		if(insnum >= DINS_EXT_BASE){
 			operands[1] = operands[0];
 			operands[0] = insnum - DINS_EXT_BASE;
 			opLabels[1] = opLabels[0];
+
+			hasNw[1] = hasNw[0]; 
+			hasNw[0] = false;
+			nextWord[1] = nextWord[0];
+
 			numOperands = 2;
 			insnum = DI_NonBasic;
 		}
@@ -338,7 +346,7 @@ uint16_t Assemble(Dasm* me, const char* ifilename, int addr, int depth)
 		for(int i = 0; i < numOperands; i++){
 			int v = operands[i];
 			LogD("  Operand %d: %s (0x%02x)", i + 1, valNames[v], v);
-			if(opHasNextWord(v)){
+			if(hasNw[i]){
 				LogD("  NextWord: 0x%04x", nextWord[i]);
 			}
 		}
@@ -351,8 +359,7 @@ uint16_t Assemble(Dasm* me, const char* ifilename, int addr, int depth)
 		
 		// Write "nextwords"
 		for(int i = 0; i < numOperands; i++){
-			int v = operands[i];
-			if(opHasNextWord(v)){
+			if(hasNw[i]){
 				// This refers to a label
 				if(opLabels[i]){
 					Labels_Get(me->labels, opLabels[i], addr, me->lineNumber);

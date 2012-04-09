@@ -1,0 +1,8 @@
+:label1
+:label2	SET A, label5
+:label3	SET B, label2
+:label4 SET C, label4
+	SET X, A
+	SET Y, A
+	SET Z, A
+:label5

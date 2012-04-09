@@ -45,7 +45,7 @@ void Disasm(uint16_t* ram)
 
 		for(int i = 0; i < numVals; i++){
 			char numStr[64] = {0};
-			if(hasNextWord[i]) sprintf(numStr, "0x%x", nextWord[i]);
+			if(hasNextWord[i]) sprintf(numStr, "0x%02x", nextWord[i]);
 
 			char str[64];
 			n += printf("%s", StrReplace(str, valNames[v[i]], "NW", numStr));
