@@ -29,12 +29,20 @@ char* GetToken(Dasm* me, char* buffer, char* token)
 	
 	char expecting = 0;
 
-	while((expecting || (*buffer > 32 && *buffer != ',')) && *buffer != 0){
-		if(*buffer == '\"'){
-			if(expecting && expecting == *buffer) expecting = 0;
-			else expecting = *buffer;
-		}
+	char start[] = "\"'[";
+	char end[] = "\"']";
 
+
+	while((expecting || (*buffer > 32 && *buffer != ',')) && *buffer != 0){
+		for(int i = 0; i < sizeof(start); i++){
+			if(expecting){
+				if(*buffer == end[i]) expecting = 0;
+			}else{
+				if(*buffer == start[i]){
+					expecting = start[i];
+				}
+			}
+		}
 		token[at++] = *(buffer++);
 	}
 

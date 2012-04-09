@@ -18,6 +18,12 @@ bool StrEmpty(const char* str)
 	return true;
 }
 
+char* LStrip(char* str)
+{
+	while(*str <= 32 && *str != 0) str++;
+	return str;
+}
+
 uint16_t ParseLiteral(Dasm* me, const char* str, bool* success, bool failOnError)
 {
 	unsigned lit = 0xaaaa;
@@ -66,20 +72,35 @@ DVals ParseOperand(Dasm* me, const char* tok, unsigned int* nextWord, char** lab
 	if(!strcmp(token, "o")) return DV_O;
 
 	char buffer[MAX_STR_SIZE];
+	char buffer2[MAX_STR_SIZE];
+
+	char* b1 = buffer, *b2 = buffer2;
 	
-	// [nextword + register]
-	if(sscanf(token, "[%[^+]+%c]", buffer, &c) == 2){
-		// 0x1 or 1...
+	// [nextword + register] or [register + nextword]
+	if(sscanf(token, "[%[^+]+%[^]]s]", buffer, buffer2) == 2){
+		// if it's on the format [register + nextword], flip it
 		bool isLiteral = false;
-		*nextWord = ParseLiteral(me, buffer, &isLiteral, false);
+		*nextWord = ParseLiteral(me, b2, &isLiteral, false);
+		if(isLiteral){
+			b2 = buffer;
+			b1 = buffer2;
+
+			LogD("b1 '%s' b2 '%s'", b1, b2);
+		}
+
+		// 0x1 or 1...
+		isLiteral = false;
+		*nextWord = ParseLiteral(me, b1, &isLiteral, false);
 		if(isLiteral) goto done_parsing;
 
 		// label
 		*nextWord = 0;
-		*label = strdup(buffer);
+		*label = strdup(b1);
 
 		done_parsing:
-		return DV_RefRegNextWordBase + lookUpReg(c, true);
+		b2 = LStrip(b2);
+		LogD("looking for reg '%c' (%s)", b2[0], b2);
+		return DV_RefRegNextWordBase + lookUpReg(b2[0], true);
 	}
 
 	if(sscanf(token, "[%[^]]]", buffer)){
@@ -141,7 +162,7 @@ uint16_t Assemble(Dasm* me, const char* ifilename, int addr, int depth)
 	int saveLineNumber = me->lineNumber;
 
 	me->currentFile = ifilename;
-	me->lineNumber = 1;
+	me->lineNumber = 0;
 
 	char buffer[MAX_STR_SIZE];
 	char token[MAX_STR_SIZE];

@@ -1,0 +1,33 @@
+;Test of all compiler instructions. Should be fine in both upper and lower case
+
+:start	jsr start
+		set a, b
+		sub a, b
+		mul a, b
+		div a, b
+		mod a, b
+		shl a, b
+		shr a, b
+		and a, b
+		bor a, b
+		xor a, b
+		ife a, b
+		ifn a, b
+		ifg a, b
+		ifb a, b
+
+		JSR start
+		SET a, b
+		SUB a, b
+		MUL a, b
+		DIV a, b
+		MOD a, b
+		SHL a, b
+		SHR a, b
+		AND a, b
+		BOR a, b
+		XOR a, b
+		IFE a, b
+		IFN a, b
+		IFG a, b
+		IFB a, b
