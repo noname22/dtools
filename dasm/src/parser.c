@@ -376,6 +376,11 @@ uint16_t Assemble(Dasm* me, const char* ifilename, int addr, int depth)
 
 		for(int i = 0; i < wrote; i++) d += sprintf(d, "%04x ", me->ram[addr - wrote + i]);
 		LogD("  Output: %s", dump);
+		
+		// Debug file
+		if(me->debugFile){
+			fprintf(me->debugFile, "%04x %04x %d %s\n", addr - wrote, wrote, me->lineNumber, me->currentFile);
+		}
 
 	} while (done);
 

@@ -11,9 +11,10 @@ int main(int argc, char** argv)
 	int atFile = 0;
 	unsigned addr = 0;
 	unsigned lastAddr = 0xffff;
+	bool debugSymbols = false;
 
 	const char* files[2] = {NULL, NULL};
-	const char* usage = "usage: %s (-vX | -h) [dasm file] [out binary]";
+	const char* usage = "usage: %s (-vX | -h | -sX | -d) [dasm file] [out binary]";
 
 	for(int i = 1; i < argc; i++){
 		char* v = argv[i];
@@ -25,10 +26,12 @@ int main(int argc, char** argv)
 				LogI("  -vX   set log level, where X is [0-5] - default: 2");
 				LogI("  -sX   set assembly start address [0-FFFF] - default 0");
 				LogI("  -h    show this help message");
+				LogI("  -d    generate debug symbols");
 				return 0;
 			}
 			else if(sscanf(v, "-v%d", &logLevel) == 1){}
 			else if(sscanf(v, "-s%x", &addr) == 1){}
+			else if(!strcmp(v, "-d")){ debugSymbols = true; }
 			else{
 				LogF("No such flag: %s", v);
 				return 1;
@@ -46,7 +49,19 @@ int main(int argc, char** argv)
 	uint16_t* ram = malloc(sizeof(uint16_t) * 0x10000);
 
 	Dasm* d = Dasm_Create();
+	
+	if(debugSymbols){
+		char tmp[4096];
+		sprintf(tmp, "%s.dbg", files[1]);
+		d->debugFile = fopen(tmp, "w");
+		LogV("Opening debug file: %s", tmp);
+		LAssert(d->debugFile, "could not open file: %s", tmp);
+	}
+
 	uint16_t len = Dasm_Assemble(d, files[0], ram, addr, lastAddr);
+
+	if(d->debugFile) fclose(d->debugFile);
+
 	Dasm_Destroy(&d);
 
 	if(logLevel == 0) DumpRam(ram, len - 1);

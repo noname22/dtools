@@ -1,0 +1,8 @@
+:start	SET A, A
+	SET B, B
+	SET C, C
+	SET PC, start
+
+.include "incme1.dasm"
+.include "incme2.dasm"
+.include "incme1.dasm"

@@ -5,6 +5,7 @@
 #define STARTSWITH(__str, __c) ((__str)[0] == (__c))
 
 #include <stdint.h>
+#include <stdio.h>
 
 extern int logLevel;
 
@@ -22,6 +23,8 @@ typedef struct {
 
 	Defines* defines;
 	Labels* labels;
+
+	FILE* debugFile;
 } Dasm;
 
 Dasm* Dasm_Create();
