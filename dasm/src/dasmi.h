@@ -29,6 +29,7 @@ Vector(Define);
 typedef struct
 {
 	uint16_t addr;
+	char* filename;
 	int lineNumber;
 } LabelRef;
 
@@ -39,6 +40,10 @@ typedef struct {
 	uint16_t addr;
 	uint16_t id;
 	bool found;
+
+	int lineNumber;
+	char* filename;
+
 	LabelRefs references;
 } Label;
 
@@ -47,8 +52,8 @@ Vector(Label);
 Labels* Labels_Create();
 Label* Labels_Lookup(Labels* me, const char* label);
 Label* Labels_Add(Labels* me, const char* label);
-void Labels_Define(Labels* me, const char* label, uint16_t address);
-uint16_t Labels_Get(Labels* me, const char* label, uint16_t current, int lineNumber);
+void Labels_Define(Labels* me, Dasm* d, const char* label, uint16_t address, const char* filename, int lineNumber);
+uint16_t Labels_Get(Labels* me, const char* label, uint16_t current, const char* fileName, int lineNumber);
 void Labels_Replace(Labels* me, uint16_t* ram);
 bool GetLine(Dasm* me, FILE* f, char* buffer);
 char* GetToken(Dasm* me, char* buffer, char* token);

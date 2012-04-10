@@ -1,8 +1,11 @@
 :start	SET A, A
 	SET B, B
 	SET C, C
-	SET PC, start
+:l1
+:l2
+:l3
+:l4
+	SET [0xAAAA], [0xBBBB]
 
-.include "incme1.dasm"
 .include "incme2.dasm"
 .include "incme1.dasm"

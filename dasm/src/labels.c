@@ -33,15 +33,22 @@ Label* Labels_Add(Labels* me, const char* label)
 	return &me->elems[me->count - 1];
 }
 
-void Labels_Define(Labels* me, const char* label, uint16_t address)
+void Labels_Define(Labels* lme, Dasm* me, const char* label, uint16_t address, const char* filename, int lineNumber)
 {
-	Label* l = Labels_Lookup(me, label);
-	if(!l) l = Labels_Add(me, label);
+	Label* l = Labels_Lookup(lme, label);
+	if(!l) l = Labels_Add(lme, label);
+	else 
+		LAssertError(!l->found, 
+			"duplicate label: %s, first defined at %s:%d", 
+			label, l->filename, l->lineNumber);
+
 	l->addr = address;
 	l->found = true;
+	l->filename = strdup(filename);
+	l->lineNumber = lineNumber;
 } 
 
-uint16_t Labels_Get(Labels* me, const char* label, uint16_t current, int lineNumber)
+uint16_t Labels_Get(Labels* me, const char* label, uint16_t current, const char* filename, int lineNumber)
 {
 	Label* l = Labels_Lookup(me, label);
 	if(!l) l = Labels_Add(me, label);
@@ -49,6 +56,7 @@ uint16_t Labels_Get(Labels* me, const char* label, uint16_t current, int lineNum
 	LabelRef ref;
 
 	ref.lineNumber = lineNumber;
+	ref.filename = strdup(filename);
 	ref.addr = current;
 
 	Vector_Add(l->references, ref);
@@ -70,7 +78,7 @@ void Labels_Replace(Labels* me, uint16_t* ram)
 
 			LabelRef* ref;
 			Vector_ForEach(l->references, ref){
-				LogI("  line: %d", ref->lineNumber);
+				LogI("  %s:%d", ref->filename, ref->lineNumber);
 			}
 			exit(1);
 		}

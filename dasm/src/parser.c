@@ -40,6 +40,21 @@ uint16_t ParseLiteral(Dasm* me, const char* str, bool* success, bool failOnError
 	return lit;
 }
 
+void WriteDebugInfo(Dasm* me, uint16_t addr, int wrote, int labelsAdded)
+{
+	// Debug file
+	if(me->debugFile){
+		LogD("labels found: %d", labelsAdded);
+		// Write [address] [length of output (instruction, etc)] [line number] [file]
+		fprintf(me->debugFile, "%04x %04x %d %s", addr - wrote, wrote, me->lineNumber, me->currentFile);
+
+		// Write all labels associated with this address			
+		for(int i = 0; i < labelsAdded; i++) 
+			fprintf(me->debugFile, " %s", me->labels->elems[me->labels->count - 1 - i].label);
+		fprintf(me->debugFile, "\n");
+	}
+}
+
 DVals ParseOperand(Dasm* me, const char* tok, unsigned int* nextWord, char** label)
 {
 	char c;
@@ -169,6 +184,7 @@ uint16_t Assemble(Dasm* me, const char* ifilename, int addr, int depth)
 	char token[MAX_STR_SIZE];
 
 	bool done = false;
+	int labelsAdded = 0;
 
 	do{
 		int wrote = 0;
@@ -207,7 +223,8 @@ uint16_t Assemble(Dasm* me, const char* ifilename, int addr, int depth)
 
 			// A label, add it and continue	
 			if(toknum == 0 && STARTSWITH(token, ':')) {
-				Labels_Define(me->labels, token + 1, addr);
+				Labels_Define(me->labels, me, token + 1, addr, me->currentFile, me->lineNumber);
+				labelsAdded++;
 				continue;
 			}
 
@@ -315,9 +332,16 @@ uint16_t Assemble(Dasm* me, const char* ifilename, int addr, int depth)
 			toknum++;
 		}
 
-		// Pseudo instruction handled (-2) or no instruction found 
+		// Assembler directive handled (-2) or no instruction found 
 		// (probably a label but no instruction), continue with next line
-		if(insnum <= -1) continue;
+		if(insnum <= -1){
+			if(wrote){
+				// An assembler direvtive wrote data, associate any labels with it
+				WriteDebugInfo(me, addr, wrote, labelsAdded);
+				labelsAdded = 0;
+			}
+			continue;
+		}
 		
 		if(insnum < DINS_EXT_BASE){ LAssertError(toknum == 3, "baisc instructions expect 2 operands (not %d)", toknum - 1);}
 		else { LAssertError(toknum == 2, "extended instructions expect 1 operand (not %d)", toknum - 1); }
@@ -362,7 +386,7 @@ uint16_t Assemble(Dasm* me, const char* ifilename, int addr, int depth)
 			if(hasNw[i]){
 				// This refers to a label
 				if(opLabels[i]){
-					Labels_Get(me->labels, opLabels[i], addr, me->lineNumber);
+					Labels_Get(me->labels, opLabels[i], addr, me->currentFile, me->lineNumber);
 					free(opLabels[i]);
 				}
 
@@ -376,15 +400,12 @@ uint16_t Assemble(Dasm* me, const char* ifilename, int addr, int depth)
 
 		for(int i = 0; i < wrote; i++) d += sprintf(d, "%04x ", me->ram[addr - wrote + i]);
 		LogD("  Output: %s", dump);
+	
+		WriteDebugInfo(me, addr, wrote, labelsAdded);
 		
-		// Debug file
-		if(me->debugFile){
-			fprintf(me->debugFile, "%04x %04x %d %s\n", addr - wrote, wrote, me->lineNumber, me->currentFile);
-		}
+		labelsAdded = 0;
 
 	} while (done);
-
-	Labels_Replace(me->labels, me->ram);
 
 	fclose(in);
 	

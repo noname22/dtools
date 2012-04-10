@@ -40,5 +40,9 @@ uint16_t Dasm_Assemble(Dasm* me, const char* ifilename, uint16_t* ram, int start
 	me->baseDir = calloc(1, GetDir(ifilename, NULL));
 	GetDir(ifilename, me->baseDir);
 
-	return Assemble(me, ifilename, startAddr, 0);
+	uint16_t ret = Assemble(me, ifilename, startAddr, 0);
+
+	Labels_Replace(me->labels, me->ram);
+
+	return ret;
 }
