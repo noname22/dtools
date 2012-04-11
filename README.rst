@@ -29,7 +29,7 @@ Assembler Directives
 
 There are a number of assembler directives in dasm that aims to make the life of the programmer a bit easier. They include:
 
-  * .ORG n - Set the origin of the assemnly. n is an address. Eg. .ORG 0x10 means that the succeeding instructions now start at memory address 0x10.
+  * .ORG n - Set the origin of the assembly. n is an address. Eg. .ORG 0x10 means that the succeeding instructions now start at memory address 0x10.
   * .DEFINE x y - If a token is x, it's replaced by y. Eg. .DEFINE MY_REGISTER A ; SET MY_REGISTER, 3 will set A to 3.
   * .RESERVE n - Reserves a memory area for eg. a text buffer. n is the size of the area.
   * .FILL n x - Same as .RESERVE but fills the area with the word x.
