@@ -402,8 +402,8 @@ void Debug_Inspector(Dcpu* dcpu, void* vme)
 		{"run", Run, "runs the program",
 			"  run ([n ins])   runs the specified number of instructions, or forever if nothing is specified.\n"},
 
-		{"step", Step, "steps on instruction in the program", 
-			"  step            steps on instruction in the program.\n"},
+		{"step", Step, "steps one instruction in the program", 
+			"  step            steps one instruction in the program.\n"},
 
 		{"where", Where, "shows the current line of code",
 			"  where           shows the current line of code from the source file.\n"},
