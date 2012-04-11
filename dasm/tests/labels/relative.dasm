@@ -1,0 +1,9 @@
+:start	SET A, B
+	SET B, C
+	SET X, Z
+:loop	ADD PC, rel:loop
+	ADD PC, rel:finish
+
+:finish
+	SET C, Z
+	ADD PC, rel:start
