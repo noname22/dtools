@@ -332,12 +332,14 @@ void Debug_Inspector(Dcpu* dcpu, void* vme)
 					printf("[0x%04x]: 0x%04x\n", addr, *Dcpu_GetRam(dcpu) + ((uint16_t)addr));
 				}
 
-				DebugSymbol* s = Debug_GetDebugSymbolByItem(me, argv[i]);
+				else{
+					DebugSymbol* s = Debug_GetDebugSymbolByItem(me, argv[i]);
 
-				if(s){
-					printf("[%s (0x%04x)]: 0x%04x\n", argv[i], s->addr, *Dcpu_GetRam(dcpu) + ((uint16_t)s->addr));
+					if(s){
+						printf("[%s (0x%04x)]: 0x%04x\n", argv[i], s->addr, *Dcpu_GetRam(dcpu) + ((uint16_t)s->addr));
+					}
+					else printf("I don't know what a '%s' is\n", argv[i]);
 				}
-				else printf("I don't know what a '%s' is\n", argv[i]);
 			}
 
 			if(what >= 0) printf("%s: 0x%04x\n", argv[i], Dcpu_GetRegister(dcpu, what));
@@ -516,9 +518,10 @@ Debug* Debug_Create(Dcpu* dcpu)
 bool Debug_LoadSymbols(Debug* me, const char* filename)
 {
 	FILE* f = fopen(filename, "r");
-	LogW("debug symbols not loaded, could not open file: %s", filename);
-	return false;
-	
+	if(!f){
+		LogW("debug symbols not loaded, could not open file: '%s'", filename);
+		return false;
+	}
 
 	SourceFile* AddSourceFile(const char* filename){
 		// If it's already added, return the old one
