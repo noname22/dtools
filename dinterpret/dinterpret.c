@@ -15,7 +15,7 @@ void SysRead(Dcpu* me, void* data)
 	char* lbuffer = lb;
 
 	uint16_t* buffer = Dcpu_GetRam(me) + Dcpu_Pop(me);
-	gets(lbuffer);
+	fgets(lbuffer,sizeof(lb),stdin);
 
 	while(*lbuffer) *buffer++ = *lbuffer++;
 }
