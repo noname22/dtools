@@ -52,7 +52,7 @@ typedef struct {
 Debug* Debug_Create(Dcpu* dcpu);
 void Debug_Destroy(Debug** debug);
 void Debug_Inspector(Dcpu* dcpu, void* debug);
-void Debug_LoadSymbols(Debug* debug, const char* filename);
+bool Debug_LoadSymbols(Debug* debug, const char* filename);
 
 void Debug_AddBreakPointAddr(Debug* debug, uint16_t addr);
 bool Debug_AddBreakPointLine(Debug* debug, const char* filename, int line);

@@ -261,7 +261,9 @@ void Debug_Inspector(Dcpu* dcpu, void* vme)
 
 			else if(sscanf(argv[2], "%u", &addr) == 1){
 				DebugSymbol* s = GetSymbolFromAddress(me, Dcpu_GetRegister(dcpu, DR_PC));
-				RAssert(s, "current address not associated with a file, please specify file");
+				RAssert(s, "when trying to associate line number %d with a source file: " 
+					"current address (pc) not associated with a source file, please specify source file\n"
+					"(or use 'break add *%d' if you mean an address)\n", addr, addr);
 				AddBreakPointLine(s->sourceFile->filename, addr);
 			}
 		
@@ -511,10 +513,12 @@ Debug* Debug_Create(Dcpu* dcpu)
 	return me;
 }
 
-void Debug_LoadSymbols(Debug* me, const char* filename)
+bool Debug_LoadSymbols(Debug* me, const char* filename)
 {
 	FILE* f = fopen(filename, "r");
-	LAssert(f, "could not open file: %s", filename);
+	LogW("debug symbols not loaded, could not open file: %s", filename);
+	return false;
+	
 
 	SourceFile* AddSourceFile(const char* filename){
 		// If it's already added, return the old one
@@ -620,6 +624,8 @@ void Debug_LoadSymbols(Debug* me, const char* filename)
 	fclose(f);
 
 	LogI("loaded debug symbols from %s", filename);
+
+	return true;
 }
 
 void Debug_Destroy(Debug** me)
