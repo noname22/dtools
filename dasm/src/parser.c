@@ -24,10 +24,13 @@ char* LStrip(char* str)
 	return str;
 }
 
+// XXX: make ParseLiteral complain about garbage after the literal
 uint16_t ParseLiteral(Dasm* me, const char* str, bool* success, bool failOnError)
 {
 	unsigned lit = 0xaaaa;
+	//char tmp[MAX_STR_SIZE];
 
+	//if(sscanf(str, "0x%x%[^a-f0-9]", &lit, tmp) == 1 || sscanf(str, "%u%[^0-9]", &lit, tmp) == 1){
 	if(sscanf(str, "0x%x", &lit) == 1 || sscanf(str, "%u", &lit) == 1){
 		LAssertError(lit < 0x10000, "Literal number must be in range 0 - 65535 (0xFFFF)");
 		if(success) *success = true;
@@ -386,7 +389,7 @@ uint16_t Assemble(Dasm* me, const char* ifilename, int addr, int depth)
 			if(hasNw[i]){
 				// This refers to a label
 				if(opLabels[i]){
-					Labels_Get(me->labels, opLabels[i], addr, me->currentFile, me->lineNumber);
+					Labels_Get(me->labels, opLabels[i], addr, addr - wrote, me->currentFile, me->lineNumber);
 					free(opLabels[i]);
 				}
 
@@ -395,7 +398,7 @@ uint16_t Assemble(Dasm* me, const char* ifilename, int addr, int depth)
 		}
 
 		char dump[64];
-		memset(dump, 64, 0);
+		memset(dump, 0, 64);
 		char* d = dump;
 
 		for(int i = 0; i < wrote; i++) d += sprintf(d, "%04x ", me->ram[addr - wrote + i]);

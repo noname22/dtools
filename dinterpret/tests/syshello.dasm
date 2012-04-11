@@ -33,5 +33,5 @@
 :m_hello 	.DW "Hello ", 0
 :m_excl		.DW "!", 0xa, 0
 
-		; Buffer to write the name to, rest of RAM
-:b_name		.DW 0x00
+		; Reserve a buffer of 256 characters to write to
+:b_name		.RESERVE 256

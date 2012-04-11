@@ -1,0 +1,31 @@
+; Test of a relocatable program
+
+; Program
+
+:start
+	set x, rel:message	; set x to the relative distance beetween
+				; x and pc after this instruction
+
+	add x, pc		; add pc's value after this instruction
+	sub x, 1		; fix the offset, subtract the length of the previous instruction
+
+				; x now contains the address of message, regardless of where in memory this
+				; program has been loaded to
+	
+	set i, 9		; for i = 9 to 0
+	
+	:loop
+		sub i, 1
+
+		set push, x	; push x and call "puts"
+		sys 2
+
+		ifg i, 0	; relative jump to loop, add because it wraps in ram
+			add pc, rel:loop
+
+	set a, 0		; exit the program with status 0
+	sys 0	
+
+; Data
+
+:message .DW "Hi!", 0xa, 0

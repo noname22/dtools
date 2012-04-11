@@ -1,0 +1,22 @@
+; Tests if the memory wraps properly
+; Should return 123 to system
+
+:start
+	; put address of test output word in a
+
+	set a, output
+	add a, 1
+	
+	; overflow address with 0xffff -> -1
+	; and set the result to 123
+
+	set [a+0xffff], 123
+
+	; program return code in a, shold be 0x11ff
+	; exit
+
+	set a, [output]
+	sys 0
+
+.org 0x10
+:output		.RESERVE 1 ; reserve one word for the output at 0x10

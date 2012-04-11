@@ -46,7 +46,7 @@ int main(int argc, char** argv)
 	LAssert(addr <= 0xffff, "Assembly start address must be within range 0 - 0xFFFF (not %x)", addr);
 	
 	// Allocate 64 kword RAM file
-	uint16_t* ram = malloc(sizeof(uint16_t) * 0x10000);
+	uint16_t* ram = calloc(1, sizeof(uint16_t) * 0x10000);
 
 	Dasm* d = Dasm_Create();
 	

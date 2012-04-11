@@ -10,7 +10,7 @@ typedef struct {
 	void* data;
 } SysCall;
 
-static const char* dinsNames[] = DINSNAMES;
+//static const char* dinsNames[] = DINSNAMES;
 
 typedef Vector(SysCall) SysCallVector;
 
@@ -25,22 +25,37 @@ struct Dcpu {
 	int cycles;
 
 	SysCallVector sysCalls;
+	void (*inspector)(Dcpu* dcpu, void* data);
+	void* inspectorData;
 
 	InsPtr ins[DINS_NUM];
 };
 
-// Safely lookup a offset into ram, will wrap around to start.
-static uint16_t* Dcpu_GetRamSafe(Dcpu *me, int offset)
+// Cast to uint16_t
+#define U16C(__w) ((uint16_t)(__w))
+
+void Dcpu_SetExit(Dcpu* me, bool e)
 {
-	return me->ram + (uint16_t)offset;
+	me->exit = e;
+}
+
+bool Dcpu_GetExit(Dcpu* me)
+{
+	return me->exit;
 }
 
 uint16_t Dcpu_Pop(Dcpu* me) { 
-	return *Dcpu_GetRamSafe(me, me->sp++);
+	return me->ram[me->sp++];
 }
 
 void Dcpu_Push(Dcpu* me, uint16_t v){
-	*Dcpu_GetRamSafe(me, --me->sp) = v;
+	me->ram[--me->sp] = v;
+}
+
+void Dcpu_SetInspector(Dcpu* me, void (*ins)(Dcpu* dcpu, void* data), void* data)
+{
+	me->inspector = ins;
+	me->inspectorData = data;
 }
 
 // Extended instructions
@@ -64,9 +79,7 @@ void NonBasic(Dcpu* me, uint16_t* v1, uint16_t* v2)
 		bool found = false;
 		Vector_ForEach(me->sysCalls, s){
 			if(s->id == *v2){
-				Dcpu_DumpState(me);
 				s->fun(me, s->data);
-				Dcpu_DumpState(me);
 				found = true;
 				break;
 			}
@@ -105,21 +118,19 @@ void Mul(Dcpu* me, uint16_t* v1, uint16_t* v2)
 
 void Div(Dcpu* me, uint16_t* v1, uint16_t* v2)
 {
-	if(!*v2){
-		me->o = *v1 = 0;
-		return;
-	}
+	if(*v2 == 0){ me->o = *v1 = 0; return; }
 	me->o = (((uint32_t)*v1 << 16) / ((uint32_t)*v2)) & 0xffff;
+
+	// do this twice because v2 can be o
+	if(*v2 == 0){ me->o = *v1 = 0; return; }
+
 	*v1 /= *v2;
 	me->cycles += 3;
 }
 
 void Mod(Dcpu* me, uint16_t* v1, uint16_t* v2)
 {
-	if(!*v2){
-		me->o = *v1 = 0;
-		return;
-	}
+	if(*v2 == 0){ me->o = *v1 = 0; return; }
 	*v1 %= *v2;
 	me->cycles += 3;
 }
@@ -197,19 +208,27 @@ uint16_t* Dcpu_GetRam(Dcpu* me)
 
 uint16_t Dcpu_GetRegister(Dcpu* me, Dcpu_Register reg)
 {
-	return me->regs[reg];
+	if(reg <= DR_J) return me->regs[reg];
+	if(reg == DR_O) return me->o;
+	if(reg == DR_SP) return me->sp;
+	return me->pc;
 }
 
 void Dcpu_SetRegister(Dcpu* me, Dcpu_Register reg, uint16_t val)
 {
-	me->regs[reg] = val;
+	if(reg <= DR_J) me->regs[reg] = val;
+	else if(reg == DR_O) me->o = val;
+	else if(reg == DR_SP) me->sp = val;
+	else me->pc = val;
 }
 
 void Dcpu_DumpState(Dcpu* me)
 {
 	LogD(" == Current State ==");
-	LogD("Registers:");
-	LogD("  SP: 0x%04x", me->sp);
+	LogD("Regs: A:0x%04x B:0x%04x C:0x%04x X:0x%04x Y:0x%04x Z:0x%4x I:0x%04x J:0x%04x", 
+		me->regs[0], me->regs[1], me->regs[2], me->regs[3], me->regs[4], me->regs[5], me->regs[6], me->regs[7]);
+
+	LogD("      SP:0x%04x PC:0x%04x O:0x%04x", me->sp, me->pc, me->o);
 	
 	LogD(" ");
 	LogD("Stack: ");
@@ -224,10 +243,12 @@ void Dcpu_DumpState(Dcpu* me)
 
 int Dcpu_Execute(Dcpu* me, int execCycles)
 {
-	#define READ *Dcpu_GetRamSafe(me, me->pc++)
+	#define READ me->ram[me->pc++]
 	me->cycles = 0;
 
 	while(me->cycles < execCycles){
+		if(me->inspector) me->inspector(me, me->inspectorData);
+
 		bool hasNextWord[2];
 		uint16_t val[2];
 		uint16_t pIns = READ;
@@ -260,23 +281,23 @@ int Dcpu_Execute(Dcpu* me, int execCycles)
 
 			// register reference
 			else if(vv >= DV_RefBase && vv <= DV_RefTop){
-				pv[i] = Dcpu_GetRamSafe(me, me->regs[vv - DV_RefBase]);
+				pv[i] = me->ram + me->regs[vv - DV_RefBase];
 			}
 
 			// nextword + register reference
 			else if(vv >= DV_RefRegNextWordBase && vv <= DV_RefRegNextWordTop){
-				pv[i] = Dcpu_GetRamSafe(me, val[i] + me->regs[vv - DV_RefRegNextWordBase]);
+				pv[i] = me->ram + U16C(val[i] + me->regs[vv - DV_RefRegNextWordBase]);
 			}
 
-			else if(vv == DV_Pop)  pv[i] = Dcpu_GetRamSafe(me, me->sp++);
-			else if(vv == DV_Peek) pv[i] = Dcpu_GetRamSafe(me, me->sp);
-			else if(vv == DV_Push) pv[i] = Dcpu_GetRamSafe(me, --me->sp);
+			else if(vv == DV_Pop)  pv[i] = me->ram + me->sp++;
+			else if(vv == DV_Peek) pv[i] = me->ram + me->sp;
+			else if(vv == DV_Push) pv[i] = me->ram + --me->sp;
 
 			else if(vv == DV_SP) pv[i] = &me->sp;
 			else if(vv == DV_PC) pv[i] = &me->pc;
 			else if(vv == DV_O) pv[i] = &me->o; // XXX: O should be one bit?
 
-			else if(vv == DV_RefNextWord) pv[i] = Dcpu_GetRamSafe(me, val[i]);
+			else if(vv == DV_RefNextWord) pv[i] = me->ram + val[i];
 			else if(vv == DV_NextWord) pv[i] = val + i;
 			else if(vv >= DV_LiteralBase && vv <= DV_LiteralTop){
 				val[i] = vv - DV_LiteralBase;
@@ -285,12 +306,13 @@ int Dcpu_Execute(Dcpu* me, int execCycles)
 		}
 		
 		if(me->performNextIns){ 
-			LogD("%s", dinsNames[ins]);
+			//LogD("%s", dinsNames[ins]);
 			me->ins[ins](me, pv[0], pv[1]);
 		}
+
 		else me->performNextIns = true;
 
-		Dcpu_DumpState(me);
+		//Dcpu_DumpState(me);
 
 		if(me->exit) return 0;
 	}

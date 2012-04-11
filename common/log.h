@@ -11,5 +11,6 @@
 #define LogF(...) Log(5, "FF", __VA_ARGS__)
 
 #define LAssert(__v, ...) if(!(__v)){ LogF(__VA_ARGS__); exit(1); };
+#define LAssertWarn(__v, ...) if(!(__v)){ LogW(__VA_ARGS__); };
 
 #endif
