@@ -255,32 +255,49 @@ int Dcpu_Execute(Dcpu* me, int execCycles)
 				me->cycles++;
 			}
 
-			// register
-			if(vv >= DV_A && vv <= DV_J) pv[i] = me->regs + vv - DV_A;
+			switch(vv){
+				case DV_Pop:  
+					pv[i] = Dcpu_GetRamSafe(me, me->sp++);
+					break;
+				case DV_Peek:
+					pv[i] = Dcpu_GetRamSafe(me, me->sp);
+					break;
+				case DV_Push:
+					pv[i] = Dcpu_GetRamSafe(me, --me->sp);
+					break;
+				case DV_SP:
+					pv[i] = &me->sp;
+					break;
+				case DV_PC:
+					pv[i] = &me->pc;
+					break;
+				case DV_O: 
+					pv[i] = &me->o; // XXX: O should be one bit?
+					break;
+				case DV_RefNextWord:
+					pv[i] = Dcpu_GetRamSafe(me, val[i]);
+					break;
+				case DV_NextWord: 
+					pv[i] = val + i;
+					break;
+				default:
+					// register
+					if(vv >= DV_A && vv <= DV_J) 
+						pv[i] = me->regs + vv - DV_A;
 
-			// register reference
-			else if(vv >= DV_RefBase && vv <= DV_RefTop){
-				pv[i] = Dcpu_GetRamSafe(me, me->regs[vv - DV_RefBase]);
-			}
+					// register reference
+					else if(vv >= DV_RefBase && vv <= DV_RefTop){
+						pv[i] = Dcpu_GetRamSafe(me, me->regs[vv - DV_RefBase]);
+					}
 
-			// nextword + register reference
-			else if(vv >= DV_RefRegNextWordBase && vv <= DV_RefRegNextWordTop){
-				pv[i] = Dcpu_GetRamSafe(me, val[i] + me->regs[vv - DV_RefRegNextWordBase]);
-			}
-
-			else if(vv == DV_Pop)  pv[i] = Dcpu_GetRamSafe(me, me->sp++);
-			else if(vv == DV_Peek) pv[i] = Dcpu_GetRamSafe(me, me->sp);
-			else if(vv == DV_Push) pv[i] = Dcpu_GetRamSafe(me, --me->sp);
-
-			else if(vv == DV_SP) pv[i] = &me->sp;
-			else if(vv == DV_PC) pv[i] = &me->pc;
-			else if(vv == DV_O) pv[i] = &me->o; // XXX: O should be one bit?
-
-			else if(vv == DV_RefNextWord) pv[i] = Dcpu_GetRamSafe(me, val[i]);
-			else if(vv == DV_NextWord) pv[i] = val + i;
-			else if(vv >= DV_LiteralBase && vv <= DV_LiteralTop){
-				val[i] = vv - DV_LiteralBase;
-				pv[i] = val + i;
+					// nextword + register reference
+					else if(vv >= DV_RefRegNextWordBase && vv <= DV_RefRegNextWordTop){
+						pv[i] = Dcpu_GetRamSafe(me, val[i] + me->regs[vv - DV_RefRegNextWordBase]);
+					}
+					else if(vv >= DV_LiteralBase && vv <= DV_LiteralTop){
+						val[i] = vv - DV_LiteralBase;
+						pv[i] = val + i;
+					}
 			}
 		}
 		
