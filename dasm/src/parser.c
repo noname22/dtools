@@ -164,9 +164,12 @@ char* UnquoteStr(Dasm* me, char* target, const char* str)
 	LAssertError(
 		(STARTSWITH(str, '"') && ENDSWITH(str, '"')) ||
 		(STARTSWITH(str, '\'') && ENDSWITH(str, '\'')), 
-		"Error parsing quoted string: %s", str);
+		"expected quoted string, got: %s (without quotes)."
+		" Did you mean \"%s\"?", str, str);
 
-	return strncpy(target, str + 1, strlen(str) - 2);
+
+	target[0] = 0;
+	return strncat(target, str + 1, strlen(str) - 2);
 }
 
 uint16_t Assemble(Dasm* me, const char* ifilename, int addr, int depth)
