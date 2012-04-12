@@ -220,9 +220,12 @@ uint16_t Assemble(Dasm* me, const char* ifilename, int addr, int depth)
 		int toknum = 0;
 
 		for(;;){
+			// note: GetToken "consumes" the line, that's why it's line = GetToken
 			line = GetToken(me, line, token);
 			
 			if(StrEmpty(token)) break;
+
+			//LogD("token: '%s'", token);
 
 			char tokenUpper[MAX_STR_SIZE];
 			for(int i = 0; i < strlen(token) + 1; i++) tokenUpper[i] = toupper(token[i]);
@@ -349,7 +352,7 @@ uint16_t Assemble(Dasm* me, const char* ifilename, int addr, int depth)
 			continue;
 		}
 		
-		if(insnum < DINS_EXT_BASE){ LAssertError(toknum == 3, "baisc instructions expect 2 operands (not %d)", toknum - 1);}
+		if(insnum < DINS_EXT_BASE){ LAssertError(toknum == 3, "basic instructions expect 2 operands (not %d)", toknum - 1);}
 		else { LAssertError(toknum == 2, "extended instructions expect 1 operand (not %d)", toknum - 1); }
 
 		// Line parsed, write parsed stuff

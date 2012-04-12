@@ -18,11 +18,10 @@ bool GetLine(Dasm* me, FILE* f, char* buffer)
 	}
 }
 
-// XXX: Handle spaces inside []
-char* GetToken(Dasm* me, char* buffer, char* token)
+char* GetToken(Dasm* me, char* line, char* token)
 {
 	// skip spaces etc.
-	while((*buffer <= 32 || *buffer == ',') && *buffer != 0) buffer++;
+	while((*line <= 32 || *line == ',') && *line != 0) line++;
 
 	// read into token until the next space or end of string
 	int at = 0;
@@ -33,15 +32,15 @@ char* GetToken(Dasm* me, char* buffer, char* token)
 	char end[] = "\"']";
 
 
-	while((expecting || (*buffer > 32 && *buffer != ',')) && *buffer != 0){
+	while((expecting || (*line > 32 && *line != ',')) && *line != 0){
 		if(expecting){
-			if(*buffer == expecting) expecting = 0;
+			if(*line == expecting) expecting = 0;
 		}else{
 			for(int i = 0; i < sizeof(start); i++){
-				if(*buffer == start[i]) expecting = end[i];
+				if(*line == start[i]) expecting = end[i];
 			}
 		}
-		token[at++] = *(buffer++);
+		token[at++] = *(line++);
 	}
 
 	LAssertError(!expecting, "unterminated quotation, expected: '%c'", expecting);	
@@ -50,11 +49,12 @@ char* GetToken(Dasm* me, char* buffer, char* token)
 	// Handle defines	
 	Define* it;
 	Vector_ForEach(*me->defines, it){
-		if(!strcmp(buffer, it->searchReplace[0]));
-		strcpy(buffer, it->searchReplace[1]);
+		if(!strcmp(token, it->searchReplace[0])){
+			strcpy(token, it->searchReplace[1]);
+		}
 	}
 
-	return buffer;
+	return line;
 }
 
 
