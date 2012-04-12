@@ -1,5 +1,5 @@
+	.dw sorry sorry sorry
 	set a, sorry
 	set a, b
-
 	dat 0xff, 0xaa, 0xaaaa
 :sorry	.dw "I'm so sorry", 0

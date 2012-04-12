@@ -261,8 +261,15 @@ uint16_t Assemble(Dasm* me, const char* ifilename, int addr, int depth)
 
 					// Literal number (hex or dec)
 					else{ 
-						LogD("Literal: %s", token);
-						Write(ParseLiteral(me, token, NULL, true));
+						bool isLiteral = false;
+						uint16_t lit = ParseLiteral(me, token, &isLiteral, false);
+						if(isLiteral){
+							Write(lit);
+						}else{
+							// A label
+							Labels_Get(me->labels, token, addr, addr - wrote, me->currentFile, me->lineNumber);
+							Write(0);
+						}
 					}
 				}
 
