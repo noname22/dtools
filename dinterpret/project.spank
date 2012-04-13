@@ -1,3 +1,4 @@
 target dinterpret
 cflags ggdb std=gnu99 Wall I../common I../libdcpu/include
 sourcedir ../common ../libdcpu/src src
+lib sdl
