@@ -3,7 +3,7 @@
 
 SRCS= src/tokenizer.c src/parser.c src/dasm.c src/labels.c src/main.c ../common/common.c
 OBJS= /tmp/dasm.tempfiles/src___tokenizer.c.o /tmp/dasm.tempfiles/src___parser.c.o /tmp/dasm.tempfiles/src___dasm.c.o /tmp/dasm.tempfiles/src___labels.c.o /tmp/dasm.tempfiles/src___main.c.o /tmp/dasm.tempfiles/..___common___common.c.o
-CFLAGS= -ggdb -std=gnu99 -Wall -I../common -DSPANK_COMPILER_GCC -DSPANK_ENV_UNIX -D'SPANK_NAME="untitled project"' -D'SPANK_BINNAME="dasm"' -D'SPANK_VERSION="0.1"' -D'SPANK_HOMEPAGE="none"' -D'SPANK_AUTHOR="author of untitled project"' -D'SPANK_EMAIL="nomail@example.com"' -D'SPANK_PREFIX=""' 
+CFLAGS= -ggdb -std=gnu99 -Wall -pedantic -I../common -DSPANK_COMPILER_GCC -DSPANK_ENV_UNIX -D'SPANK_NAME="untitled project"' -D'SPANK_BINNAME="dasm"' -D'SPANK_VERSION="0.1"' -D'SPANK_HOMEPAGE="none"' -D'SPANK_AUTHOR="author of untitled project"' -D'SPANK_EMAIL="nomail@example.com"' -D'SPANK_PREFIX=""' 
 LDCALL= gcc -o dasm /tmp/dasm.tempfiles/src___tokenizer.c.o /tmp/dasm.tempfiles/src___parser.c.o /tmp/dasm.tempfiles/src___dasm.c.o /tmp/dasm.tempfiles/src___labels.c.o /tmp/dasm.tempfiles/src___main.c.o /tmp/dasm.tempfiles/..___common___common.c.o 
 COMPILER=gcc
 TARGET=dasm

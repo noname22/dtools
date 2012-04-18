@@ -58,6 +58,14 @@ void WriteDebugInfo(Dasm* me, uint16_t addr, int wrote, int labelsAdded)
 	}
 }
 
+int LookUpReg(Dasm* me, char c, bool fail)
+{
+	char tab[] = "abcxyzij";
+	for(int i = 0; i < 8; i++) if(tab[i] == c) return i;
+	LAssertError(!fail, "No such register: %c", c);
+	return -1;
+}
+
 DVals ParseOperand(Dasm* me, const char* tok, unsigned int* nextWord, char** label)
 {
 	char c;
@@ -65,15 +73,6 @@ DVals ParseOperand(Dasm* me, const char* tok, unsigned int* nextWord, char** lab
 	strcpy(token, tok);
 
 	for(int i = 0; i < strlen(token); i++) token[i] = tolower(token[i]);
-
-	int lookUpReg(char c, bool fail)
-	{
-		char tab[] = "abcxyzij";
-		for(int i = 0; i < 8; i++) if(tab[i] == c) return i;
-		LAssertError(!fail, "No such register: %c", c);
-		return -1;
-	}
-		
 
 	LogD("parsing operand: %s", tok);
 
@@ -119,12 +118,12 @@ DVals ParseOperand(Dasm* me, const char* tok, unsigned int* nextWord, char** lab
 		done_parsing:
 		b2 = LStrip(b2);
 		LogD("looking for reg '%c' (%s)", b2[0], b2);
-		return DV_RefRegNextWordBase + lookUpReg(b2[0], true);
+		return DV_RefRegNextWordBase + LookUpReg(me, b2[0], true);
 	}
 
 	if(sscanf(token, "[%[^]]]", buffer)){
 		// [register]
-		int reg = lookUpReg(*buffer, false);
+		int reg = LookUpReg(me, *buffer, false);
 		if(buffer[1] == 0 && reg != -1) return DV_RefBase + reg;
 
 		// [nextword]
@@ -148,7 +147,7 @@ DVals ParseOperand(Dasm* me, const char* tok, unsigned int* nextWord, char** lab
 
 	// register
 	if(strlen(token) == 1 && sscanf(token, "%c", &c) == 1){
-		int reg = lookUpReg(c, false);
+		int reg = LookUpReg(me, c, false);
 		if(reg != -1) return DV_A + reg;
 	}
 
@@ -172,6 +171,7 @@ char* UnquoteStr(Dasm* me, char* target, const char* str)
 	return strncat(target, str + 1, strlen(str) - 2);
 }
 
+
 uint16_t Assemble(Dasm* me, const char* ifilename, int addr, int depth)
 {
 	LogV("Assembling: %s", ifilename);
@@ -194,11 +194,12 @@ uint16_t Assemble(Dasm* me, const char* ifilename, int addr, int depth)
 
 	do{
 		int wrote = 0;
-		void Write(uint16_t val){
-			LAssertError(addr <= me->endAddr, "Out of space in binary, at last address %x", me->endAddr);
-			me->ram[addr++] = val;
-			wrote++;
-		}
+		#define Write(__val) \
+			do{\
+				LAssertError(addr <= me->endAddr, "Out of space in binary, at last address %x", me->endAddr);\
+				me->ram[addr++] = (uint16_t)(__val);\
+				wrote++;\
+			}while(0);
 
 		char* line = buffer;
 
