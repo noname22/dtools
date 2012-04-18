@@ -1,13 +1,18 @@
 #include "common.h"
 
-void WriteRam(uint16_t* ram, const char* filename, uint16_t end)
+void WriteRam(uint16_t* ram, const char* filename, uint16_t end, DByteOrder bo)
 {
 	FILE* out = fopen(filename, "w");
 	LAssert(out, "could not open new file for writing: %s", filename);
 
 	for(int i = 0; i < end + 1; i++){
-		fputc(ram[i] & 0xff, out);
-		fputc(ram[i] >> 8, out);
+		if(bo == DBO_LittleEndian){
+			fputc(ram[i] & 0xff, out);
+			fputc(ram[i] >> 8, out);
+		} else {
+			fputc(ram[i] >> 8, out);
+			fputc(ram[i] & 0xff, out);
+		}
 	}
 
 	fclose(out);

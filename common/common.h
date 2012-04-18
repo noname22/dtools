@@ -17,7 +17,7 @@ typedef enum {DBO_LittleEndian, DBO_BigEndian } DByteOrder;
 
 uint16_t GetUsedRam(uint16_t* ram);
 void DumpRam(uint16_t* ram, uint16_t end);
-void WriteRam(uint16_t* ram, const char* filename, uint16_t len);
+void WriteRam(uint16_t* ram, const char* filename, uint16_t len, DByteOrder bo);
 void LoadRam(uint16_t* ram, const char* filename);
 bool opHasNextWord(uint16_t v);
 char* StrReplace(char* target, const char* str, const char* what, const char* with);

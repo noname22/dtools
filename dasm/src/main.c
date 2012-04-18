@@ -12,9 +12,11 @@ int main(int argc, char** argv)
 	unsigned addr = 0;
 	unsigned lastAddr = 0xffff;
 	bool debugSymbols = false;
+	char c;
+	DByteOrder byteOrder = DBO_LittleEndian;
 
 	const char* files[2] = {NULL, NULL};
-	const char* usage = "usage: %s (-vX | -h | -sX | -d) [dasm file] [out binary]";
+	const char* usage = "usage: %s (-vX | -h | -sX | -d | -eX) [dasm file] [out binary]";
 
 	for(int i = 1; i < argc; i++){
 		char* v = argv[i];
@@ -27,10 +29,12 @@ int main(int argc, char** argv)
 				LogI("  -sX   set assembly start address [0-FFFF] - default 0");
 				LogI("  -h    show this help message");
 				LogI("  -d    generate debug symbols");
+				LogI("  -eX   set endianness of output, where X is [l | b] default: l");
 				return 0;
 			}
 			else if(sscanf(v, "-v%d", &logLevel) == 1){}
 			else if(sscanf(v, "-s%x", &addr) == 1){}
+			else if(sscanf(v, "-e%1c", &c) == 1){ byteOrder = c == 'l' ? DBO_LittleEndian : DBO_BigEndian; }
 			else if(!strcmp(v, "-d")){ debugSymbols = true; }
 			else{
 				LogF("No such flag: %s", v);
@@ -67,7 +71,7 @@ int main(int argc, char** argv)
 	if(logLevel == 0) DumpRam(ram, len - 1);
 
 	LogV("Writing to: %s", files[1]);
-	WriteRam(ram, files[1], len - 1);
+	WriteRam(ram, files[1], len - 1, byteOrder);
 
 	free(ram);
 	return 0;
