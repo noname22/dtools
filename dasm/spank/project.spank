@@ -1,0 +1,3 @@
+include spank/common.inc
+
+target dasm

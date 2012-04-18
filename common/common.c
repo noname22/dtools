@@ -2,15 +2,16 @@
 
 void WriteRam(uint16_t* ram, const char* filename, uint16_t end, DByteOrder bo)
 {
-	FILE* out = fopen(filename, "w");
+	FILE* out = fopen(filename, "wb");
 	LAssert(out, "could not open new file for writing: %s", filename);
 
 	for(int i = 0; i < end + 1; i++){
 		if(bo == DBO_LittleEndian){
+			LogD("%02x %02x", ram[i] & 0xff, (ram[i] >> 8) & 0xff);
 			fputc(ram[i] & 0xff, out);
-			fputc(ram[i] >> 8, out);
+			fputc((ram[i] >> 8) & 0xff, out);
 		} else {
-			fputc(ram[i] >> 8, out);
+			fputc((ram[i] >> 8) & 0xff, out);
 			fputc(ram[i] & 0xff, out);
 		}
 	}

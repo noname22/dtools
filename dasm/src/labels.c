@@ -95,7 +95,7 @@ void Labels_Replace(Labels* me, uint16_t* ram)
 {
 	LogD("replacing labels");
 
-	LogD("%d", me->count);
+	LogD("label count: %d", me->count);
 
 	Label* l;
 	Vector_ForEach(*me, l){

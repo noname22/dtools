@@ -1,3 +1,0 @@
-target dasm
-cflags ggdb std=gnu99 Wall pedantic I../common
-sourcedir src ../common
