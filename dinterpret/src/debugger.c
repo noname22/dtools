@@ -442,7 +442,7 @@ void Debug_Inspector(Dcpu* dcpu, void* vme)
 
 		printf("> ");
 
-		if(gets(input) == NULL){
+		if(fgets(input,sizeof(input),stdin) == NULL){
 			// ctrl-d
 			printf("quit\n");
 			Quit(0, NULL);
