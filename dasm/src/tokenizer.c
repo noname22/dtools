@@ -33,13 +33,19 @@ char* GetToken(Dasm* me, char* line, char* token)
 
 
 	while((expecting || (*line > 32 && *line != ',')) && *line != 0){
-		if(expecting){
-			if(*line == expecting) expecting = 0;
+		if(*line == '\\'){
+			line++;
+			LAssert(*line != 0, "can't end a line with escaping backslash");
 		}else{
-			for(int i = 0; i < sizeof(start); i++){
-				if(*line == start[i]) expecting = end[i];
+			if(expecting){
+				if(*line == expecting) expecting = 0;
+			}else{
+				for(int i = 0; i < sizeof(start); i++){
+					if(*line == start[i]) expecting = end[i];
+				}
 			}
 		}
+
 		token[at++] = *(line++);
 	}
 
