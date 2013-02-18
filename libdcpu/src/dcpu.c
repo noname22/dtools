@@ -145,6 +145,7 @@ void Shl(Dcpu* me, uint16_t* v1, uint16_t* v2)
 void Shr(Dcpu* me, uint16_t* v1, uint16_t* v2)
 {
 	me->o = (((uint32_t)*v1 << 16)>> (uint32_t)*v2) & 0xffff;
+	*v1 = *v1 >> *v2;
 	me->cycles += 2;
 }
 
